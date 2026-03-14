@@ -49,6 +49,18 @@ RSpec.describe Rbexy::PhlexCompiler do
       expect(html).to include("src")
       expect(html).to include("alt")
     end
+
+    it "renders bare boolean attributes as true (disabled, required, checked)" do
+      code = phlex_compile('<input type="checkbox" disabled />')
+      expect(code).to include("disabled: true")
+      expect(code).to include('type: "checkbox"')
+    end
+
+    it "renders boolean component props as true" do
+      stub_const("ButtonComponent", Class.new)
+      code = phlex_compile("<Button primary />")
+      expect(code).to include("primary: true")
+    end
   end
 
   describe "text content" do

@@ -97,7 +97,12 @@ module Rbexy
 
     def compile_attr_value(node)
       case node
-      when Nodes::Text             then node.content.inspect
+      when Nodes::Text
+        # A boolean (bare) attribute like `disabled` or `required` has an empty
+        # text value in the AST. Phlex emits the attribute name alone for `true`
+        # and omits it completely for `false`. Empty string would produce `attr=""`
+        # which is technically valid HTML but semantically wrong for boolean attrs.
+        node.content.empty? ? "true" : node.content.inspect
       when Nodes::ExpressionGroup  then compile_expression_group_value(node)
       else node.class.name
       end

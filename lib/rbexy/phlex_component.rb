@@ -242,6 +242,20 @@ module Rbexy
         ObjectSpace.each_object(Class).select { |c| c < self }
       end
 
+      # Returns the Phlex DSL Ruby code that was compiled from the .rbx template.
+      # Useful for debugging, introspection, and writing specs that verify
+      # what the compiler generates:
+      #
+      #   puts MyCard.compiled_template_code
+      #   # ⇒ div(class: "card") do
+      #   #      plain(@title)
+      #   #    end
+      def compiled_template_code
+        path = @_rbx_template_path || rbx_template_path
+        return nil unless path
+        compile_template(path)
+      end
+
       private
 
       def compile_template(path)

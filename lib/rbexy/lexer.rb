@@ -1,12 +1,18 @@
 module Rbexy
   class Lexer
     class SyntaxError < StandardError
+      attr_reader :line, :path
+
       def initialize(lexer)
-        super(
-          "Invalid syntax: `#{lexer.scanner.peek(20)}`\n" +
-          "Stack: #{lexer.stack}\n" +
-          "Tokens: #{lexer.tokens}"
-        )
+        @line = lexer.current_line
+        # Template#identifier is the file path; Anonymous is an empty String.
+        ident = lexer.template.identifier
+        @path = ident.to_s.empty? ? nil : ident.to_s
+
+        location = path ? "#{File.basename(path)}:#{line}" : "line #{line}"
+        snippet  = lexer.scanner.peek(30).chomp.inspect
+
+        super("#{location}: unexpected token near #{snippet}")
       end
     end
 
@@ -34,8 +40,7 @@ module Rbexy
     }.freeze
 
     attr_reader :stack, :tokens, :scanner, :element_resolver, :template
-    attr_accessor :curr_expr, :curr_default_text,
-                  :curr_quoted_text
+    attr_accessor :curr_expr, :curr_default_text, :curr_quoted_text
 
     def initialize(template, element_resolver)
       @template = template
@@ -46,6 +51,14 @@ module Rbexy
       @curr_default_text = ""
       @curr_quoted_text = ""
       @tokens = []
+      @line = 1
+    end
+
+    # Current line number (1-indexed). Derived from the scanner's current
+    # position — counts newlines consumed so far. Called only on errors
+    # so O(n) is acceptable.
+    def current_line
+      scanner.string[0, scanner.pos].count("\n") + 1
     end
 
     def tokenize
