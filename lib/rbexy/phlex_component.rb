@@ -1,5 +1,6 @@
 require "phlex"
 require "phlex-rails"
+require "digest"
 
 module Rbexy
   # Base class for JSX-backed Phlex components.
@@ -86,14 +87,37 @@ module Rbexy
       # You can still override initialize manually when you need logic
       # beyond simple ivar assignment.
       def props(*required_names, **defaults)
+        # Guard against mutable default values ([], {}) — they would be
+        # shared across every instance of the component, causing subtle
+        # cross-request state contamination. Fail loudly at class-definition
+        # time with guidance on the idiomatic fix.
+        defaults.each do |key, val|
+          if val.is_a?(Array) || val.is_a?(Hash)
+            raise ArgumentError,
+              "#{name}.props :#{key} has a mutable default (#{val.inspect}). " \
+              "Use nil as the default and set the value in initialize instead:\n" \
+              "  props :#{key}\n" \
+              "  def initialize(#{key}: nil)\n" \
+              "    @#{key} = #{key} || #{val.inspect}\n" \
+              "  end"
+          end
+        end
+
         @_declared_props = { required: required_names.map(&:to_sym), defaults: defaults }
+
+        all_names = required_names.map(&:to_sym) + defaults.keys.map(&:to_sym)
+
+        # Generate attr_readers so callers can inspect prop values after render.
+        # Templates use @ivar directly; attr_reader makes the same data available
+        # to parent components or test code.
+        attr_reader(*all_names)
 
         # Build initialize parameter list
         params = required_names.map { |n| "#{n}:" }
         defaults.each { |k, v| params << "#{k}: #{v.inspect}" }
 
         # Build ivar assignment lines
-        assignments = (required_names + defaults.keys).map { |n| "  @#{n} = #{n}" }
+        assignments = all_names.map { |n| "  @#{n} = #{n}" }
 
         class_eval(<<~RUBY, __FILE__, __LINE__ + 1)
           def initialize(#{params.join(", ")})
@@ -102,7 +126,7 @@ module Rbexy
         RUBY
       end
 
-      # Returns the declared props hash, or nil if not declared.
+      # Returns the declared props, or nil if none were declared.
       attr_reader :_declared_props
     end
 
@@ -129,9 +153,9 @@ module Rbexy
     #
     #   render(<Comp />) already wrote to buffer → returns nil → no-op here
     #   Array/Enumerable    → each element rendered recursively
-    #   Phlex::SafeObject   → raw()
+    #   Phlex::SafeObject   → raw()  (trusted HTML, no escaping)
     #   nil / false / ""   → silent no-op (safe for && and || patterns)
-    #   anything else       → plain(value.to_s)  (CGI auto-escaped)
+    #   anything else       → plain(value.to_s)  (CGI auto-escaped, XSS-safe)
     def __rbx_expr_out(value)
       case value
       when nil, false, ""
@@ -149,6 +173,20 @@ module Rbexy
       else
         plain(value.to_s)
       end
+    end
+
+    # Explicit escape hatch for trusted HTML strings.
+    #
+    # By default, every { expression } is CGI-escaped via plain(). Use safe()
+    # when you have a string that is already HTML and must not be escaped:
+    #
+    #   {safe(@html_body)}            # raw inject
+    #   {@items.map { safe(i.html) }} # safe inside map
+    #
+    # WARNING: never pass user-supplied input to safe() — it bypasses all XSS
+    # protection. Only use for strings you have produced or sanitized yourself.
+    def safe(html_string)
+      Phlex::SGML::SafeValue.new(html_string.to_s)
     end
 
     # Override Phlex's render to always return nil.
@@ -259,12 +297,22 @@ module Rbexy
       private
 
       def compile_template(path)
-        mtime = File.mtime(path)
-        cached = TEMPLATE_CACHE[path]
-        return cached[:code] if cached && cached[:mtime] == mtime
+        content = File.read(path)
 
-        source = File.read(path)
-        template = Rbexy::Template.new(source, path)
+        # Cache by content hash, not mtime. mtime is fragile in Docker/rsync
+        # deployments where COPY or rsync can reset timestamps to build time
+        # without changing content — or vice versa, touch the file without
+        # changing content, causing pointless recompilation.
+        #
+        # SHA256 is deterministic and correct. We truncate to 16 hex chars
+        # (64 bits of collision resistance) which is more than sufficient for
+        # a per-process in-memory cache keyed by full path.
+        hash = Digest::SHA256.hexdigest(content)[0, 16]
+        cache_key = "#{path}:#{hash}"
+
+        return TEMPLATE_CACHE[cache_key] if TEMPLATE_CACHE.key?(cache_key)
+
+        template = Rbexy::Template.new(content, path)
 
         begin
           code = Rbexy.phlex_compile(template)
@@ -275,7 +323,7 @@ module Rbexy
           )
         end
 
-        TEMPLATE_CACHE[path] = { mtime: mtime, code: code }
+        TEMPLATE_CACHE[cache_key] = code
         code
       end
 

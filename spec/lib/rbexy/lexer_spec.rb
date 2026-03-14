@@ -852,4 +852,74 @@ RBX
       ]
     end
   end
+
+  # ---- Fragment tokenization ----
+
+  describe "fragment syntax <></>" do
+    it "emits OPEN_FRAGMENT for <>" do
+      subject = Rbexy::Lexer.new(Rbexy::Template.new("<><p>x</p></>"), Rbexy::ComponentResolver.new)
+      types = subject.tokenize.map(&:first)
+      expect(types).to include(:OPEN_FRAGMENT)
+    end
+
+    it "emits CLOSE_FRAGMENT for </>" do
+      subject = Rbexy::Lexer.new(Rbexy::Template.new("<><p>x</p></>"), Rbexy::ComponentResolver.new)
+      types = subject.tokenize.map(&:first)
+      expect(types).to include(:CLOSE_FRAGMENT)
+    end
+
+    it "emits one OPEN_FRAGMENT per <> and one CLOSE_FRAGMENT per </>" do
+      subject = Rbexy::Lexer.new(Rbexy::Template.new("<><p>a</p><p>b</p></>"), Rbexy::ComponentResolver.new)
+      tokens = subject.tokenize.map(&:first)
+      expect(tokens.count(:OPEN_FRAGMENT)).to eq(1)
+      expect(tokens.count(:CLOSE_FRAGMENT)).to eq(1)
+    end
+
+    it "does not emit OPEN_TAG_DEF or TAG_DETAILS for the fragment angle brackets" do
+      subject = Rbexy::Lexer.new(Rbexy::Template.new("<><span>hi</span></>"), Rbexy::ComponentResolver.new)
+      tokens = subject.tokenize
+      # First OPEN_TAG_DEF should belong to <span>, not <>
+      first_tag = tokens.find { |t| t.first == :TAG_DETAILS }
+      expect(first_tag[1][:name]).to eq("span")
+    end
+  end
+
+  # ---- SyntaxError line-number reporting ----
+
+  describe "SyntaxError" do
+    it "raises SyntaxError on invalid syntax" do
+      subject = Rbexy::Lexer.new(Rbexy::Template.new("<div {broken>"), Rbexy::ComponentResolver.new)
+      expect { subject.tokenize }.to raise_error(Rbexy::Lexer::SyntaxError)
+    end
+
+    it "reports line 1 for an error on the first line" do
+      subject = Rbexy::Lexer.new(Rbexy::Template.new("<div @bad>"), Rbexy::ComponentResolver.new)
+      error = nil
+      begin; subject.tokenize; rescue Rbexy::Lexer::SyntaxError => e; error = e; end
+      expect(error.line).to eq(1)
+    end
+
+    it "reports the correct line for a multi-line template error" do
+      source = "<div>\n<p>good</p>\n<span @bad>"
+      subject = Rbexy::Lexer.new(Rbexy::Template.new(source), Rbexy::ComponentResolver.new)
+      error = nil
+      begin; subject.tokenize; rescue Rbexy::Lexer::SyntaxError => e; error = e; end
+      expect(error.line).to eq(3)
+    end
+
+    it "includes a 'near' snippet in the error message" do
+      subject = Rbexy::Lexer.new(Rbexy::Template.new("<div {bad"), Rbexy::ComponentResolver.new)
+      error = nil
+      begin; subject.tokenize; rescue Rbexy::Lexer::SyntaxError => e; error = e; end
+      expect(error.message).to match(/near/)
+    end
+
+    it "includes the filename when a template has an identifier" do
+      template = Rbexy::Template.new("<div @bad>", "/app/components/card_component.rbx")
+      subject  = Rbexy::Lexer.new(template, Rbexy::ComponentResolver.new)
+      error = nil
+      begin; subject.tokenize; rescue Rbexy::Lexer::SyntaxError => e; error = e; end
+      expect(error.message).to include("card_component.rbx")
+    end
+  end
 end

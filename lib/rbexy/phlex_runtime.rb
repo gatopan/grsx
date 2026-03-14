@@ -52,6 +52,12 @@ module Rbexy
       instance_eval(&block)
     end
 
+    # Explicit escape hatch for trusted HTML strings (mirrors PhlexComponent#safe).
+    # WARNING: never pass user-supplied input to safe() — bypasses XSS protection.
+    def safe(html_string)
+      Phlex::SGML::SafeValue.new(html_string.to_s)
+    end
+
     # Delegate unknown method calls to the Rails view_context if present,
     # mirroring how Rbexy::Component delegates via method_missing.
     def method_missing(meth, *args, **kwargs, &block)

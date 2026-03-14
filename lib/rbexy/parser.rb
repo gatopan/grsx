@@ -1,6 +1,15 @@
 module Rbexy
   class Parser
-    class ParseError < StandardError; end
+    class ParseError < StandardError
+      attr_reader :position
+
+      def initialize(message = nil, position: nil)
+        @position = position
+        msg = message || "Unexpected token"
+        msg = "#{msg} at token #{position}" if position
+        super(msg)
+      end
+    end
 
     attr_reader :tokens
     attr_accessor :position
