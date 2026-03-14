@@ -6,7 +6,7 @@ module Rbexy
   # actually used in a template without requiring manual declaration.
   #
   # Usage:
-  #   code = Rbexy.phlex_compile(template)
+  #   code = Rbexy.compile(template)
   #   names = Rbexy::PropInspector.scan_code(code)
   #   # => [:title, :body, :user]
   #

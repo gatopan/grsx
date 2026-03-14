@@ -1,3 +1,4 @@
+require "timeout"
 RSpec.describe Rbexy::Parser do
   it "handles :TEXT" do
     subject = Rbexy::Parser.new([[:TEXT, "Hello world"]])

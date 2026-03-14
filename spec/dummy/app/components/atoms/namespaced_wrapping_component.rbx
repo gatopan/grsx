@@ -1,3 +1,0 @@
-<NamespacedParent>
-  <NamespacedParent.Child />
-</NamespacedParent>

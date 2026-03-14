@@ -11,8 +11,12 @@ module Rbexy
   class PhlexRuntime < Phlex::HTML
     # Include ALL phlex-rails helper adapters (mirrors PhlexComponent).
     Phlex::Rails::Helpers.constants.each do |helper_name|
-      mod = Phlex::Rails::Helpers.const_get(helper_name)
-      include mod if mod.is_a?(Module)
+      begin
+        mod = Phlex::Rails::Helpers.const_get(helper_name)
+        include mod if mod.is_a?(Module)
+      rescue NameError
+        # Skip helpers that require Rails to be fully initialized
+      end
     end
 
     # Called by PhlexCompiler-generated code for inline expressions: {expr}

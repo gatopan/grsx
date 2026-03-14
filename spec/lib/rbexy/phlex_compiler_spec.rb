@@ -1,13 +1,13 @@
 require "spec_helper"
 
 RSpec.describe Rbexy::PhlexCompiler do
-  def phlex_compile(source)
+  def compile_rbx(source)
     template = Rbexy::Template.new(source)
-    Rbexy.phlex_compile(template)
+    Rbexy.compile(template)
   end
 
   def render_phlex(source)
-    code = phlex_compile(source)
+    code = compile_rbx(source)
     runtime = Rbexy::PhlexRuntime.new
     # PhlexRuntime#call takes an optional block; we evaluate our compiled code inside view_template
     runtime.call { runtime.instance_eval(code) }
@@ -51,14 +51,14 @@ RSpec.describe Rbexy::PhlexCompiler do
     end
 
     it "renders bare boolean attributes as true (disabled, required, checked)" do
-      code = phlex_compile('<input type="checkbox" disabled />')
+      code = compile_rbx('<input type="checkbox" disabled />')
       expect(code).to include("disabled: true")
       expect(code).to include('type: "checkbox"')
     end
 
     it "renders boolean component props as true" do
       stub_const("ButtonComponent", Class.new)
-      code = phlex_compile("<Button primary />")
+      code = compile_rbx("<Button primary />")
       expect(code).to include("primary: true")
     end
   end
@@ -101,14 +101,14 @@ RSpec.describe Rbexy::PhlexCompiler do
 
   describe "generated code" do
     it "emits a div block for an element with children" do
-      code = phlex_compile("<div>hello</div>")
+      code = compile_rbx("<div>hello</div>")
       expect(code).to include("div do")
       expect(code).to include("plain(\"hello\")")
       expect(code).to include("end")
     end
 
     it "emits a void element call with no block" do
-      code = phlex_compile("<br />")
+      code = compile_rbx("<br />")
       expect(code).to include("br")
       expect(code).not_to include("do")
     end
@@ -117,40 +117,40 @@ RSpec.describe Rbexy::PhlexCompiler do
       # ComponentResolver tries constantize("TestButtonComponent") automatically
       stub_const("TestButtonComponent", Class.new)
 
-      code = phlex_compile("<TestButton label=\"ok\" />")
+      code = compile_rbx("<TestButton label=\"ok\" />")
       expect(code).to include("render(::TestButtonComponent.new(")
       expect(code).to include("label:")
     end
 
     it "emits __rbx_expr_out for expressions" do
-      code = phlex_compile("<div>{@title}</div>")
+      code = compile_rbx("<div>{@title}</div>")
       expect(code).to include("__rbx_expr_out(@title)")
     end
   end
 
   describe "attribute name normalization" do
     it "passes through simple lowercase attributes unchanged" do
-      code = phlex_compile('<div class="active">hi</div>')
+      code = compile_rbx('<div class="active">hi</div>')
       expect(code).to include("class: \"active\"")
     end
 
     it "passes through 'for' on label unchanged" do
-      code = phlex_compile('<label for="email">Email</label>')
+      code = compile_rbx('<label for="email">Email</label>')
       expect(code).to include("for: \"email\"")
     end
 
     it "converts kebab-case to underscore (the only transformation needed)" do
-      code = phlex_compile('<input tab-index="1" />')
+      code = compile_rbx('<input tab-index="1" />')
       expect(code).to include("tab_index: \"1\"")
     end
 
     it "converts data-* kebab attributes to underscored kwargs (Phlex re-hyphenates in output)" do
-      code = phlex_compile('<div data-controller="dropdown">x</div>')
+      code = compile_rbx('<div data-controller="dropdown">x</div>')
       expect(code).to include("data_controller: \"dropdown\"")
     end
 
     it "converts aria-* kebab attributes to underscored kwargs" do
-      code = phlex_compile('<button aria-label="Close">x</button>')
+      code = compile_rbx('<button aria-label="Close">x</button>')
       expect(code).to include("aria_label: \"Close\"")
     end
   end
@@ -158,7 +158,7 @@ RSpec.describe Rbexy::PhlexCompiler do
   describe "key prop stripping" do
     it "silently drops the key prop from component calls" do
       stub_const("ItemComponent", Class.new)
-      code = phlex_compile('<Item key={i} title="x" />')
+      code = compile_rbx('<Item key={i} title="x" />')
       expect(code).to include("title:")
       expect(code).not_to include("key:")
     end

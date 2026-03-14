@@ -1,38 +1,9 @@
 module Rbexy
   module Nodes
     class AbstractNode
-      PrecompileRequired = Class.new(StandardError)
-
-      attr_reader :compile_context
-
-      def precompile
-        [self]
-      end
-
-      def compile
-        raise PrecompileRequired, "#{self.class.name} must be precompiled first"
-      end
-
-      def inject_compile_context(context)
-        @compile_context = context
-        children.each { |c| c.inject_compile_context(context) } if respond_to?(:children)
-        members.each { |c| c.inject_compile_context(context) } if respond_to?(:members)
-        value.inject_compile_context(context) if respond_to?(:value)
-      end
-
-      def transform!
-        return unless ast_transformer
-        ast_transformer.transform(self, compile_context)
-        children.each(&:transform!) if respond_to?(:children)
-        members.each(&:transform!) if respond_to?(:members)
-        value.transform! if respond_to?(:value)
-      end
-
+      # Compact adjacent Raw/Newline nodes into a single Raw node.
+      # Used by the parser when building the AST.
       private
-
-      def ast_transformer
-        compile_context.ast_transformer
-      end
 
       def compact(nodes)
         compacted = []

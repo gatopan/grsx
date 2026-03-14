@@ -2,8 +2,6 @@ require "set"
 
 module Rbexy
   class ComponentResolver
-    using Rbexy::Refinements::Array::FindMap
-
     KNOWN_HTML_ELEMENTS = %w(
       a abbr acronym address animate animateMotion animateTransform applet area article aside audio b base basefont
       bdi bdo bgsound big blink blockquote body br button canvas caption center circle cite clipPath code col colgroup
@@ -46,7 +44,11 @@ module Rbexy
 
     def component_class(name, template)
       possible_names = matching_namespaces(template).map { |ns| "#{ns}.#{name}" } << name
-      possible_names.find_map(&method(:find))
+      possible_names.each do |n|
+        result = find(n)
+        return result if result
+      end
+      nil
     end
 
     private

@@ -1,2 +1,0 @@
-{Thread.current[:cache_misses] += 1}
-<h2>Hello from Updated partial</h2>

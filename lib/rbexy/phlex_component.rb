@@ -47,12 +47,16 @@ module Rbexy
     # image_tag, url_for, etc. just work in every .rbx template without
     # per-component opt-in.
     #
-    # `include Phlex::Rails::Helpers` only imports the module namespace —
-    # it does NOT include individual helpers like LinkTo, FormWith, etc.
-    # We iterate all constants and include each module explicitly.
+    # Some helpers (e.g. Routes) reference `Rails.application` at define
+    # time, which raises NameError outside a Rails boot. We rescue and
+    # skip — those helpers are unavailable in non-Rails contexts anyway.
     Phlex::Rails::Helpers.constants.each do |helper_name|
-      mod = Phlex::Rails::Helpers.const_get(helper_name)
-      include mod if mod.is_a?(Module)
+      begin
+        mod = Phlex::Rails::Helpers.const_get(helper_name)
+        include mod if mod.is_a?(Module)
+      rescue NameError
+        # Skip helpers that require Rails to be fully initialized
+      end
     end
 
     # --- Named slots ---
@@ -325,7 +329,7 @@ module Rbexy
         template = Rbexy::Template.new(content, path)
 
         begin
-          code = Rbexy.phlex_compile(template)
+          code = Rbexy.compile(template)
         rescue Rbexy::Lexer::SyntaxError, Rbexy::Parser::ParseError => e
           raise TemplateCompileError.new(
             "#{File.basename(path)}: #{e.message}",
