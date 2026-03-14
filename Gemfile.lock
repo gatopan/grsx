@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    rbexy (2.0.0.rc5)
+    grsx (2.0.0.rc5)
       activesupport (>= 7.1)
       phlex (~> 2.0)
       phlex-rails (~> 2.0)
@@ -259,6 +259,7 @@ DEPENDENCIES
   benchmark
   bigdecimal
   drb
+  grsx!
   logger
   mutex_m
   phlex (~> 2.4)
@@ -266,7 +267,6 @@ DEPENDENCIES
   pry-byebug
   rails (>= 7.1)
   rake
-  rbexy!
   rspec (~> 3.12)
   rspec-rails (~> 6.0, >= 6.0.3)
 

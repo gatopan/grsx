@@ -1,7 +1,7 @@
 require "bundler/setup"
 require "pry"
 require "action_view"
-require "rbexy"
+require "grsx"
 
 module MockComponentHelpers
   def redefine

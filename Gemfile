@@ -1,6 +1,6 @@
 source "https://rubygems.org"
 
-# Specify your gem's dependencies in rbexy.gemspec
+# Specify your gem's dependencies in grsx.gemspec
 gemspec
 
 gem "phlex", "~> 2.4"

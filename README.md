@@ -1,11 +1,11 @@
 # A Ruby template language inspired by JSX
 
-[![Build Status](https://github.com/patbenatar/rbexy/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/patbenatar/rbexy/actions?query=branch%3Amaster)
+[![Build Status](https://github.com/patbenatar/grsx/actions/workflows/main.yml/badge.svg?branch=master)](https://github.com/patbenatar/grsx/actions?query=branch%3Amaster)
 
 * [Getting Started](#getting-started-with-rails)
 * [Template Syntax](#template-syntax)
 * [Components](#components)
-  * [`Rbexy::Component`](#rbexycomponent)
+  * [`Grsx::Component`](#grsxcomponent)
   * [Usage with any component library](#usage-with-any-component-library)
 * [Fragment caching in Rails](#fragment-caching-in-rails)
 * [Advanced](#advanced)
@@ -15,7 +15,7 @@
 
 ## Manifesto
 
-Love JSX and component-based frontends, but sick of paying the costs of SPA development? Rbexy brings the elegance of JSX—operating on HTML elements and custom components with an interchangeable syntax—to the world of Rails server-rendered apps.
+Love JSX and component-based frontends, but sick of paying the costs of SPA development? Grsx brings the elegance of JSX—operating on HTML elements and custom components with an interchangeable syntax—to the world of Rails server-rendered apps.
 
 Combine this with CSS Modules in your Webpacker PostCSS pipeline and you'll have a first-class frontend development experience while maintaining the development efficiency of Rails.
 
@@ -29,7 +29,7 @@ Use your custom Ruby class components from `.rbx` templates just like you would 
 <body>
   <Hero size="fullscreen" {**splat_some_attributes}>
     <h1>Hello {@name}</h1>
-    <p>Welcome to rbexy, marrying the nice parts of React templating with the development efficiency of Rails server-rendered apps.</p>
+    <p>Welcome to grsx, marrying the nice parts of React templating with the development efficiency of Rails server-rendered apps.</p>
     <Button to={about_path}>Learn more</Button>
   </Hero>
 </body>
@@ -38,13 +38,13 @@ Use your custom Ruby class components from `.rbx` templates just like you would 
 after defining them in Ruby:
 
 ```ruby
-class HeroComponent < Rbexy::Component # or use ViewComponent, or another component lib
+class HeroComponent < Grsx::Component # or use ViewComponent, or another component lib
   def setup(size:)
     @size = size
   end
 end
 
-class ButtonComponent < Rbexy::Component
+class ButtonComponent < Grsx::Component
   def setup(to:)
     @to = to
   end
@@ -58,7 +58,7 @@ with their accompying template files (also can be `.rbx`!), scoped scss files, J
 Add it to your Gemfile and `bundle install`:
 
 ```ruby
-gem "rbexy"
+gem "grsx"
 ```
 
 _From 1.0 onward, we only support Rails 6. If you're using Rails 5, use the 0.x releases._
@@ -68,7 +68,7 @@ _Not using Rails? See "Usage outside of Rails" below._
 Create your first component at `app/components/hello_world_component.rb`:
 
 ```ruby
-class HelloWorldComponent < Rbexy::Component
+class HelloWorldComponent < Grsx::Component
   def setup(name:)
     @name = name
   end
@@ -92,7 +92,7 @@ Add a controller, action, route, and `rbx` view like `app/views/hello_worlds/ind
 </HelloWorld>
 ```
 
-Fire up `rails s`, navigate to your route, and you should see Rbexy in action!
+Fire up `rails s`, navigate to your route, and you should see Grsx in action!
 
 ## Template Syntax
 
@@ -151,7 +151,7 @@ Or pass a lambda as an attribute, that when called returns a tag:
 </Hero>
 ```
 
-_Note that when using tags inside blocks, the block must evaluate to a single root element. Rbexy behaves similar to JSX in this way. E.g.:_
+_Note that when using tags inside blocks, the block must evaluate to a single root element. Grsx behaves similar to JSX in this way. E.g.:_
 
 ```
 # Do
@@ -180,15 +180,15 @@ You can use Ruby classes as components alongside standard HTML tags:
 </div>
 ```
 
-By default, Rbexy will resolve `PageHeader` to a Ruby class called `PageHeaderComponent` and render it with the view context, attributes, and its children: `PageHeaderComponent.new(self, title: "Welcome").render_in(self, &block)`. This behavior is customizable, see "Component resolution" below.
+By default, Grsx will resolve `PageHeader` to a Ruby class called `PageHeaderComponent` and render it with the view context, attributes, and its children: `PageHeaderComponent.new(self, title: "Welcome").render_in(self, &block)`. This behavior is customizable, see "Component resolution" below.
 
-### `Rbexy::Component`
+### `Grsx::Component`
 
 We ship with a component superclass that integrates nicely with Rails' ActionView and the controller rendering context. You can use it to easily implement custom components in your Rails app:
 
 ```ruby
 # app/components/page_header_component.rb
-class PageHeaderComponent < Rbexy::Component
+class PageHeaderComponent < Grsx::Component
   def setup(title:)
     @title = title
   end
@@ -209,7 +209,7 @@ Your components and their templates run in the same context as traditional Rails
 If you'd prefer to render your components entirely from Ruby, you can do so by implementing `#call`:
 
 ```ruby
-class PageHeaderComponent < Rbexy::Component
+class PageHeaderComponent < Grsx::Component
   def setup(title:)
     @title = title
   end
@@ -222,7 +222,7 @@ end
 
 #### Context
 
-`Rbexy::Component` implements a similar notion to React's Context API, allowing you to pass data through the component tree without having to pass props down manually.
+`Grsx::Component` implements a similar notion to React's Context API, allowing you to pass data through the component tree without having to pass props down manually.
 
 Given a template:
 
@@ -235,7 +235,7 @@ Given a template:
 The form component can use Rails `form_for` and then pass the `form` builder object down to any field components using context:
 
 ```ruby
-class FormComponent < Rbexy::Component
+class FormComponent < Grsx::Component
   def setup(form_object:)
     @form_object = form_object
   end
@@ -248,7 +248,7 @@ class FormComponent < Rbexy::Component
   end
 end
 
-class TextFieldComponent < Rbexy::Component
+class TextFieldComponent < Grsx::Component
   def setup(field:)
     @field = field
     @form = use_context(:form)
@@ -262,7 +262,7 @@ end
 
 #### Usage with ERB
 
-We recommend using `Rbexy::Component` with the rbx template language, but if you prefer ERB... a component's template can be `.html.erb` and you  can render a component from ERB like so:
+We recommend using `Grsx::Component` with the rbx template language, but if you prefer ERB... a component's template can be `.html.erb` and you  can render a component from ERB like so:
 
 Rails 6.1:
 
@@ -280,11 +280,11 @@ Rails 6.0 or earlier:
 
 ### Usage with any component library
 
-You can use the rbx template language with other component libraries like Github's view_component. You just need to tell Rbexy how to render the component:
+You can use the rbx template language with other component libraries like Github's view_component. You just need to tell Grsx how to render the component:
 
 ```ruby
-# config/initializers/rbexy.rb
-Rbexy.configure do |config|
+# config/initializers/grsx.rb
+Grsx.configure do |config|
   config.component_rendering_templates = {
     children: "{capture{%{children}}}",
     component: "::%{component_class}.new(%{view_context},%{kwargs}).render_in%{children_block}"
@@ -296,22 +296,22 @@ end
 
 `.rbx` templates integrate with Rails fragment caching, automatically cachebusting when the template or its render dependencies change.
 
-If you're using `Rbexy::Component`, you can further benefit from component cachebusting where the fragment cache will be busted if any dependent component's template _or_ class definition changes.
+If you're using `Grsx::Component`, you can further benefit from component cachebusting where the fragment cache will be busted if any dependent component's template _or_ class definition changes.
 
-And you can use `<Rbexy.Cache>`, a convenient wrapper for the Rails fragment cache:
+And you can use `<Grsx.Cache>`, a convenient wrapper for the Rails fragment cache:
 
 ```rbx
-<Rbexy.Cache key={...}>
+<Grsx.Cache key={...}>
   <p>Fragment here...</p>
   <MyButton />
-</Rbexy.Cache>
+</Grsx.Cache>
 ```
 
 ## Advanced
 
 ### Component resolution
 
-By default, Rbexy resolves component tags to Ruby classes named `#{tag}Component`, e.g.:
+By default, Grsx resolves component tags to Ruby classes named `#{tag}Component`, e.g.:
 
 * `<PageHeader />` => `PageHeaderComponent`
 * `<Admin.Button />` => `Admin::ButtonComponent`
@@ -319,26 +319,26 @@ By default, Rbexy resolves component tags to Ruby classes named `#{tag}Component
 You can customize this behavior by providing a custom resolver:
 
 ```ruby
-# config/initializers/rbexy.rb
-Rbexy.configure do |config|
+# config/initializers/grsx.rb
+Grsx.configure do |config|
   config.element_resolver = MyResolver.new
 end
 ```
 
 Where `MyResolver` implements the following API:
 
-* `component?(name: string, template: Rbexy::Template) => Boolean`
-* `component_class(name: string, template: Rbexy::Template) => T`
+* `component?(name: string, template: Grsx::Template) => Boolean`
+* `component_class(name: string, template: Grsx::Template) => T`
 
-See `lib/rbexy/component_resolver.rb` for an example.
+See `lib/grsx/component_resolver.rb` for an example.
 
 #### Auto-namespacing
 
-Want to namespace your components but sick of typing `Admin.` in front of every component call? Rbexy's default `ComponentResolver` implementation has an option for that:
+Want to namespace your components but sick of typing `Admin.` in front of every component call? Grsx's default `ComponentResolver` implementation has an option for that:
 
 ```ruby
-# config/initializers/rbexy.rb
-Rbexy.configure do |config|
+# config/initializers/grsx.rb
+Grsx.configure do |config|
   config.element_resolver.component_namespaces = {
     Rails.root.join("app", "views", "admin") => %w[Admin],
     Rails.root.join("app", "components", "admin") => %w[Admin]
@@ -350,14 +350,14 @@ Now any calls to `<Button>` made from `.rbx` views within `app/views/admin/` or 
 
 ### AST Transforms
 
-You can hook into Rbexy's compilation process to mutate the abstract syntax tree. This is both useful and dangerous, so use with caution.
+You can hook into Grsx's compilation process to mutate the abstract syntax tree. This is both useful and dangerous, so use with caution.
 
 An example use case is automatically scoping CSS class names if you're using something like CSS Modules. Here's an oversimplified example of this:
 
 ```ruby
-# config/initializers/rbexy.rb
-Rbexy.configure do |config|
-  config.transforms.register(Rbexy::Nodes::HTMLAttr) do |node, context|
+# config/initializers/grsx.rb
+Grsx.configure do |config|
+  config.transforms.register(Grsx::Nodes::HTMLAttr) do |node, context|
     if node.name == "class"
       class_list = node.value.split(" ")
       node.value.content = scope_names(class_list, scope: context.template.identifier)
@@ -368,10 +368,10 @@ end
 
 ### Usage outside of Rails
 
-Rbexy compiles your template into ruby code, which you can then execute in any context you like. Subclass `Rbexy::Runtime` to add methods and instance variables that you'd like to make available to your template.
+Grsx compiles your template into ruby code, which you can then execute in any context you like. Subclass `Grsx::Runtime` to add methods and instance variables that you'd like to make available to your template.
 
 ```ruby
-class MyRuntime < Rbexy::Runtime
+class MyRuntime < Grsx::Runtime
   def initialize
     super
     @an_ivar = "Ivar value"
@@ -382,51 +382,51 @@ class MyRuntime < Rbexy::Runtime
   end
 end
 
-Rbexy.evaluate("<p class={a_method}>{@an_ivar}</p>", MyRuntime.new)
+Grsx.evaluate("<p class={a_method}>{@an_ivar}</p>", MyRuntime.new)
 ```
 
 ## Development
 
 ```
 docker-compose build
-docker-compose run rbexy bin/test
+docker-compose run grsx bin/test
 ```
 
 Or auto-run tests with guard if you prefer:
 
 ```
-docker-compose run rbexy guard
+docker-compose run grsx guard
 ```
 
 If you want to run against the supported versions of Rails, use
 Appraisal:
 
 ```
-docker-compose run rbexy bundle exec appraisal bin/test
+docker-compose run grsx bundle exec appraisal bin/test
 ```
 
 When updating dependency versions in gemspec, you also need to regenerate the appraisal gemspecs with:
 
 ```
-docker-compose run rbexy bundle exec appraisal install
+docker-compose run grsx bundle exec appraisal install
 ```
 
 ## Debugging TemplatePath methods being called
 When a new version of Rails is released, we need to check what methods are being
-called on `Rbexy::Component::TemplatePath` to make sure we always return
+called on `Grsx::Component::TemplatePath` to make sure we always return
 a TemplatePath, not a string due to how we handle `TemplatePath`s
 internally.
 
-To list all methods being called, enable `RBEXY_TEMPLATE_PATH_DEBUG` and
+To list all methods being called, enable `GRSX_TEMPLATE_PATH_DEBUG` and
 run tests:
 
 ```
-docker-compose run -e RBEXY_TEMPLATE_PATH_DEBUG=1 rbexy bundle exec appraisal bin/test
+docker-compose run -e GRSX_TEMPLATE_PATH_DEBUG=1 grsx bundle exec appraisal bin/test
 ```
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/patbenatar/rbexy. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/patbenatar/rbexy/blob/master/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at https://github.com/patbenatar/grsx. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/patbenatar/grsx/blob/master/CODE_OF_CONDUCT.md).
 
 ## License
 
@@ -434,4 +434,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 
 ## Code of Conduct
 
-Everyone interacting in the Rbexy project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/patbenatar/rbexy/blob/master/CODE_OF_CONDUCT.md).
+Everyone interacting in the Grsx project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/patbenatar/grsx/blob/master/CODE_OF_CONDUCT.md).
