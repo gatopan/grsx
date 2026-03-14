@@ -87,7 +87,7 @@ module Grsx
     class ExpressionGroup < AbstractNode
       attr_accessor :members
 
-      def initialize(members, **_ignored)
+      def initialize(members)
         @members = members
       end
     end

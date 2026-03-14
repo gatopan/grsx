@@ -140,9 +140,9 @@ module Grsx
 
     # --- Default children slot ---
 
-    # {content} in a .rbx template compiles to `yield` — Phlex 2.x style.
-    # This method is a no-op; the compiler special-cases the `content` identifier.
-    # Kept for documentation and as a fallback.
+    # The compiler emits `yield` for {content} expressions, not `content()`.
+    # This method exists as a semantic fallback if user code calls `content`
+    # directly in Ruby (undocumented but harmless).
     def content
       yield
     end
@@ -165,9 +165,12 @@ module Grsx
     # --- Template loading ---
 
     class << self
-      # Template cache: { path => { mtime: Time, code: String } }
+      # Template cache: { "path:content_hash" => compiled_code_string }
       TEMPLATE_CACHE = {}
-      private_constant :TEMPLATE_CACHE
+      # Mtime cache: { path => Time } — tracks file modification times for
+      # the dev-mode reloader without conflicting with the content-hash cache.
+      MTIME_CACHE = {}
+      private_constant :TEMPLATE_CACHE, :MTIME_CACHE
 
       def inherited(subclass)
         # Capture the caller's file path BEFORE calling super so the stack
@@ -200,16 +203,16 @@ module Grsx
         return unless path
 
         mtime = File.mtime(path)
-        cached = TEMPLATE_CACHE[path]
-        return if cached && cached[:mtime] == mtime
+        return if MTIME_CACHE[path] == mtime
 
+        MTIME_CACHE[path] = mtime
         compiled = compile_template(path)
         define_view_template(compiled)
       end
 
       # Return the path to the .rbx file for this component (nil if not found).
       def rbx_template_path
-        @_rbx_template_path if defined?(@_rbx_template_path)
+        return @_rbx_template_path if defined?(@_rbx_template_path)
 
         source = @_rbx_source_rb
         return nil unless source
