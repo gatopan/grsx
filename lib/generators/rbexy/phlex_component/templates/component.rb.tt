@@ -1,0 +1,12 @@
+class <%= component_class_name %> < Rbexy::PhlexComponent
+<% if slot_names.any? -%>
+  slots <%= slot_names.map { |s| ":#{s}" }.join(", ") %>
+
+<% end -%>
+  def initialize
+    # Define your props here, e.g.:
+    # def initialize(title:)
+    #   @title = title
+    # end
+  end
+end

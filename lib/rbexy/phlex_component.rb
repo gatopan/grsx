@@ -8,6 +8,8 @@ module Rbexy
   # file. Rbexy compiles the .rbx into a real view_template method — no eval
   # at render time.
   #
+  # ## Basic usage
+  #
   #   # app/components/card_component.rb
   #   class CardComponent < Rbexy::PhlexComponent
   #     def initialize(title:)
@@ -16,47 +18,87 @@ module Rbexy
   #   end
   #
   #   # app/components/card_component.rbx
-  #   <div class="card">
+  #   <article class="card">
   #     <h2>{@title}</h2>
   #     {content}
-  #   </div>
+  #   </article>
+  #
+  # ## Named slots
+  #
+  #   class CardComponent < Rbexy::PhlexComponent
+  #     slots :header, :footer
+  #   end
+  #
+  #   # card_component.rbx
+  #   <article>
+  #     <header>{slot(:header)}</header>
+  #     <main>{content}</main>
+  #     <footer>{slot(:footer)}</footer>
+  #   </article>
+  #
+  #   # Usage
+  #   card = CardComponent.new
+  #   card.with_slot(:header) { render LogoComponent.new }
+  #   render card
   #
   class PhlexComponent < Phlex::HTML
     include Phlex::Rails::Helpers
 
-    # --- Slot / child content ---
+    # --- Named slots ---
 
-    # Called inside a .rbx template as {content} to yield children written
-    # by the caller:
-    #
-    #   <CardComponent title="Hi">
-    #     <p>I am a child</p>
-    #   </CardComponent>
-    #
-    # This maps directly to the JSX children slot pattern. Phlex 2.x passes
-    # children as a block to view_template, so {content} in a .rbx template
-    # compiles to a bare `yield`.
+    class << self
+      # Declare named content slots on the component.
+      #
+      #   class CardComponent < Rbexy::PhlexComponent
+      #     slots :header, :footer
+      #   end
+      def slots(*names)
+        names.each do |name|
+          # Define a setter: component.with_header { ... }
+          define_method(:"with_#{name}") do |&block|
+            @_slots ||= {}
+            @_slots[name] = block
+            self
+          end
+
+          # Define a predicate: has_header?
+          define_method(:"has_#{name}?") do
+            (@_slots ||= {}).key?(name)
+          end
+        end
+      end
+    end
+
+    # Render a named slot. Falls back silently if no slot content was provided.
+    # Used in .rbx templates as {slot(:header)}.
+    def slot(name)
+      block = (@_slots ||= {})[name]
+      instance_exec(&block) if block
+      nil
+    end
+
+    # --- Default children slot ---
+
+    # {content} in a .rbx template compiles to `yield` — Phlex 2.x style.
+    # This method is a no-op; the compiler special-cases the `content` identifier.
+    # Kept for documentation and as a fallback.
     def content
       yield
     end
 
     # --- Expression output ---
 
-    # Handles all { ruby_expr } interpolations in compiled templates:
-    # - Phlex component   → render() (shares buffer, no string round-trip)
-    # - Phlex safe value  → raw()
-    # - nil / ""          → no-op
-    # - anything else     → plain().to_s (auto-escaped by CGI.escapeHTML)
+    # Handles all { ruby_expr } in compiled templates:
+    #   Phlex component  → render() (structural, shares buffer)
+    #   Phlex SafeObject → raw()
+    #   nil / ""         → no-op
+    #   anything else    → plain(value.to_s)  (CGI auto-escaped)
     def __rbx_expr_out(value)
       case value
-      when Phlex::SGML
-        render(value)
-      when Phlex::SGML::SafeObject
-        raw(value)
-      when nil, ""
-        nil
-      else
-        plain(value.to_s)
+      when Phlex::SGML      then render(value)
+      when Phlex::SGML::SafeObject then raw(value)
+      when nil, ""          then nil
+      else                  plain(value.to_s)
       end
     end
 
@@ -68,13 +110,20 @@ module Rbexy
       private_constant :TEMPLATE_CACHE
 
       def inherited(subclass)
+        # Capture the caller's file path BEFORE calling super so the stack
+        # frame is still fresh. This is more reliable than source_location
+        # because it works even when the subclass has no custom initialize.
+        defining_file = caller_locations(1, 10)
+          .find { |loc| loc.path != __FILE__ && !loc.path.end_with?("phlex_component.rb") }
+          &.path
+        subclass.instance_variable_set(:@_rbx_source_rb, defining_file)
+
         super
         subclass.load_rbx_template
       end
 
       # Locate, compile, and define view_template from the co-located .rbx file.
-      # Called once when the class is first loaded. In development mode the
-      # template is recompiled whenever the file changes.
+      # Called once when the subclass is first defined.
       def load_rbx_template
         path = rbx_template_path
         return unless path && File.exist?(path)
@@ -85,10 +134,11 @@ module Rbexy
       end
 
       # Recompile and redefine view_template if the .rbx file has changed.
-      # Call this from a Rack middleware or before_action in development.
+      # Called by Rbexy::Rails::PhlexReloader on each dev request.
       def reload_rbx_template_if_changed
         path = @_rbx_template_path
         return unless path
+
         mtime = File.mtime(path)
         cached = TEMPLATE_CACHE[path]
         return if cached && cached[:mtime] == mtime
@@ -97,25 +147,25 @@ module Rbexy
         define_view_template(compiled)
       end
 
-      private
-
-      # Derive the .rbx path from the Ruby source file of the subclass.
-      # Falls back to looking in the caller's directory.
+      # Return the path to the .rbx file for this component (nil if not found).
       def rbx_template_path
-        source = source_location
+        @_rbx_template_path if defined?(@_rbx_template_path)
+
+        source = @_rbx_source_rb
         return nil unless source
 
         base = File.basename(source, ".rb")
         dir  = File.dirname(source)
-        File.join(dir, "#{base}.rbx")
+        candidate = File.join(dir, "#{base}.rbx")
+        candidate if File.exist?(candidate)
       end
 
-      def source_location
-        # Walk the ancestor chain to find the Ruby file where this class is defined.
-        # instance_method(:initialize).source_location is the most reliable hook.
-        loc = instance_method(:initialize).source_location rescue nil
-        loc&.first
+      # All known PhlexComponent subclasses, for the dev-mode reloader.
+      def all_descendants
+        ObjectSpace.each_object(Class).select { |c| c < self }
       end
+
+      private
 
       def compile_template(path)
         mtime = File.mtime(path)
@@ -131,9 +181,8 @@ module Rbexy
       end
 
       def define_view_template(compiled_code)
-        # Define view_template as a real method body — no eval at render time.
-        # frozen_string_literal is intentionally not applied here because the
-        # compiled code contains dynamic string literals from the template.
+        # Define view_template as a real Ruby method via class_eval.
+        # No eval at render time — the compiled code is a true method body.
         class_eval(<<~RUBY, __FILE__, __LINE__ + 1)
           def view_template
             #{compiled_code}

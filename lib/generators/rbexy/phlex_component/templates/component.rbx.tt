@@ -1,0 +1,6 @@
+<div class="<%= file_name.dasherize %>">
+<% slot_names.each do |slot| -%>
+  <div class="<%= slot.dasherize %>-slot">{slot(:<%= slot %>)}</div>
+<% end -%>
+  {content}
+</div>

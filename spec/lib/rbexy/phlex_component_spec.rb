@@ -128,6 +128,82 @@ RSpec.describe Rbexy::PhlexComponent do
     expect(klass.new.call).to include("cached")
   end
 
+  describe "named slots" do
+    it "defines with_X setter and has_X? predicate via slots DSL" do
+      klass = define_component("<div>{slot(:header)}</div>") do
+        slots :header
+      end
+      instance = klass.new
+      expect(instance.has_header?).to be false
+      instance.with_header { nil }
+      expect(instance.has_header?).to be true
+    end
+
+    it "renders the slot content provided via with_X" do
+      klass = define_component('<section><header>{slot(:title)}</header>{content}</section>') do
+        slots :title
+      end
+
+      header_comp = Class.new(Phlex::HTML) { def view_template; h1 { plain("My Title") }; end }
+      body_comp   = Class.new(Phlex::HTML) { def view_template; p  { plain("Body")     }; end }
+
+      instance = klass.new
+      instance.with_title { render header_comp.new }
+
+      html = instance.call { |c| c.render body_comp.new }
+      expect(html).to include("<h1>My Title</h1>")
+      expect(html).to include("<p>Body</p>")
+    end
+
+    it "renders multiple independent named slots" do
+      klass = define_component(
+        '<div>{slot(:before)}<main>{content}</main>{slot(:after)}</div>'
+      ) { slots :before, :after }
+
+      before_comp = Class.new(Phlex::HTML) { def view_template; span { plain("PRE")  }; end }
+      after_comp  = Class.new(Phlex::HTML) { def view_template; span { plain("POST") }; end }
+      body_comp   = Class.new(Phlex::HTML) { def view_template; plain("BODY"); end }
+
+      instance = klass.new
+      instance.with_before { render before_comp.new }
+      instance.with_after  { render after_comp.new }
+
+      html = instance.call { |c| c.render body_comp.new }
+      expect(html).to include("<span>PRE</span>")
+      expect(html).to include("BODY")
+      expect(html).to include("<span>POST</span>")
+    end
+
+    it "silently skips an unfilled slot" do
+      klass = define_component('<div>{slot(:optional)}<p>body</p></div>') { slots :optional }
+      html = klass.new.call
+      expect(html).to include("<p>body</p>")
+      expect(html).not_to include("nil")
+    end
+
+    it "supports slot chaining (fluent API)" do
+      klass = define_component('<div>{slot(:a)}{slot(:b)}</div>') { slots :a, :b }
+      a_comp = Class.new(Phlex::HTML) { def view_template; plain("A"); end }
+      b_comp = Class.new(Phlex::HTML) { def view_template; plain("B"); end }
+
+      # Chain .with_a.with_b
+      instance = klass.new
+        .with_a { render a_comp.new }
+        .with_b { render b_comp.new }
+
+      html = instance.call
+      expect(html).to include("A")
+      expect(html).to include("B")
+    end
+  end
+
+  describe ".all_descendants" do
+    it "includes defined subclasses" do
+      klass = define_component("<span>x</span>")
+      expect(Rbexy::PhlexComponent.all_descendants).to include(klass)
+    end
+  end
+
   describe "template discovery" do
     it "exposes the template path" do
       dir = Dir.mktmpdir("rbexy_phlex_disc")
