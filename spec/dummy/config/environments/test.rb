@@ -6,7 +6,11 @@
 Rails.application.configure do
   # Settings specified here will take precedence over those in config/application.rb.
 
-  config.cache_classes = false
+  if config.respond_to?(:enable_reloading)
+    config.enable_reloading = true
+  else
+    config.cache_classes = false
+  end
 
   # Do not eager load code on boot. This avoids loading your whole application
   # just for the purpose of running a single test. If you are using a tool that
@@ -25,7 +29,11 @@ Rails.application.configure do
   config.cache_store = :file_store, Rails.root.join("tmp/cache")
 
   # Raise exceptions instead of rendering exception templates.
-  config.action_dispatch.show_exceptions = false
+  if ActionView.version >= Gem::Version.new("7.1")
+    config.action_dispatch.show_exceptions = :none
+  else
+    config.action_dispatch.show_exceptions = false
+  end
 
   # Disable request forgery protection in test environment.
   config.action_controller.allow_forgery_protection = false

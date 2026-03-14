@@ -3,6 +3,7 @@ require "active_support/inflector"
 require "active_support/concern"
 require "active_support/core_ext/enumerable"
 require "action_view"
+require "ostruct"
 
 require "rbexy/rails/engine" if defined?(::Rails)
 

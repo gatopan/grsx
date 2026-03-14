@@ -1,3 +1,5 @@
+require "delegate"
+
 module Rbexy
   module Rails
     class RbxDependencyTracker
@@ -22,7 +24,17 @@ module Rbexy
       attr_reader :name, :template, :view_paths
 
       def rails_render_helper_dependencies
-        ActionView::DependencyTracker::ERBTracker.call(name, template, view_paths)
+        erb_template = ActionView.version >= Gem::Version.new("8.1.0.alpha") ?
+          TemplateProxy.new(template) : template
+
+        ActionView::DependencyTracker::ERBTracker.call(name, erb_template, view_paths)
+      end
+
+      class TemplateProxy < SimpleDelegator
+        def source
+          # Rails 8.1's ERBTracker specifically scans for `<% render ... %>` which excludes Rbexy's `{ render ... }`.
+          super.gsub(/\{/, "<%").gsub(/\}/, "%>")
+        end
       end
 
       def rbexy_dependencies

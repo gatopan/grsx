@@ -1,3 +1,5 @@
+require "set"
+
 module Rbexy
   class ComponentResolver
     using Rbexy::Refinements::Array::FindMap

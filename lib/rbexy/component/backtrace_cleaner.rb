@@ -29,6 +29,8 @@ module Rbexy
       def internal_method_call?(line)
         line =~ /lib\/rbexy\/.*\.rb/ ||
           line =~ /lib\/action_view\/.*\.rb/ ||
+          line =~ /lib\/action_controller\/.*\.rb/ ||
+          line =~ /lib\/rails\/engine\/lazy_route_set\.rb/ ||
           line =~ /lib\/active_support\/notifications\.rb/
       end
 
@@ -50,7 +52,7 @@ module Rbexy
       end
 
       def template_name_if_rbx_internals(line)
-        if /\/(?<template>[^\/]*)\.rbx:\d+:in `(block |_)/ =~ line
+        if /\/(?<template>[^\/]*)\.rbx:\d+:in [`'].*(?:block |_)/ =~ line
           template
         end
       end

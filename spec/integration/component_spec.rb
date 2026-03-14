@@ -66,7 +66,7 @@ RSpec.describe ApplicationController, type: :controller do
       .to raise_error do |error|
         expect(error.backtrace[0]).to include "erroring_component.rbx:3"
         # Ruby <3.3 show the rbx file name, 3.3 shows <internal:numeric>:237
-        expect(error.backtrace[1]).to include "in `times'"
+        expect(error.backtrace[1]).to match(/in [`'](Integer#)?times'/)
         expect(error.backtrace[2]).to include "component_spec.rb"
       end
   end

@@ -25,11 +25,12 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_dependency "activesupport", ">= 6", "< 7.3"
-  spec.add_dependency "actionview", ">= 6", "< 7.3"
+  spec.add_dependency "activesupport", ">= 6", "< 8.2"
+  spec.add_dependency "actionview", ">= 6", "< 8.2"
+  spec.add_dependency "ostruct"
 
   spec.add_development_dependency "appraisal", "~> 2.2"
-  spec.add_development_dependency "rails", ">= 6", "< 7.3"
+  spec.add_development_dependency "rails", ">= 6", "< 8.2"
   spec.add_development_dependency "sprockets-rails", ">= 2", "< 4"
   spec.add_development_dependency "rspec", "~> 3.12"
   spec.add_development_dependency "guard-rspec", "~> 4.7", ">= 4.7.3"
@@ -39,5 +40,11 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "pry-byebug"
   spec.add_development_dependency "sqlite3"
   spec.add_development_dependency "puma"
+  spec.add_development_dependency "mutex_m"
+  spec.add_development_dependency "logger"
+  spec.add_development_dependency "bigdecimal"
+  spec.add_development_dependency "drb"
+  spec.add_development_dependency "benchmark"
+  spec.add_development_dependency "base64"
   spec.add_development_dependency "memory_profiler", "~> 0.9.14"
 end

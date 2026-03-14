@@ -16,8 +16,15 @@ if ActionView.version >= Gem::Version.new("7.1")
       def self.cast_file_system_resolvers(paths)
         Array(paths).each do |path|
           next unless path.is_a?(Rbexy::Rails::ComponentTemplateResolver)
-          @file_system_resolvers[path] ||= path
-          file_system_resolver_hooks.each(&:call)
+          register = -> {
+            @file_system_resolvers[path] ||= path
+            file_system_resolver_hooks.each(&:call)
+          }
+          if defined?(@file_system_resolver_mutex)
+            @file_system_resolver_mutex.synchronize(&register)
+          else
+            register.call
+          end
         end
 
         _original_cast_file_system_resolvers(paths)
