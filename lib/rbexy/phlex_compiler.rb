@@ -1,14 +1,20 @@
 module Rbexy
-  # Converts a Rbexy AST into a Ruby string of Phlex DSL method calls that can
-  # be evaluated inside a Rbexy::PhlexRuntime (a Phlex::HTML subclass).
+  # Converts a Rbexy AST into a Ruby string of Phlex DSL method calls.
   #
-  # This is an alternative to the default ActionView codegen path which emits
-  # @output_buffer.safe_concat(...) strings.
+  # The emitted code is suitable for evaluation inside a Rbexy::PhlexComponent
+  # (or Rbexy::PhlexRuntime for standalone use).  All output goes through
+  # Phlex's structural buffer — no ActionView @output_buffer.
   #
-  # Usage:
-  #   tree = Rbexy::Parser.new(tokens).parse
-  #   code = Rbexy::PhlexCompiler.new(tree).compile
-  #   Rbexy::PhlexRuntime.new(view_context: ctx, assigns: assigns).call { eval(code) }
+  # Key mappings from JSX → Phlex DSL:
+  #
+  #   <div class="foo">text</div>   → div(class: "foo") { plain("text") }
+  #   <br />                        → br
+  #   <Button label={x} />         → render(ButtonComponent.new(label: x))
+  #   <Card>{content}</Card>       → render(Card.new) { yield_content }
+  #   {"Hello"}                    → plain("Hello")  (CGI.escapeHTML called)
+  #   {render MyComp.new}          → render(MyComp.new)  (structural, shared buffer)
+  #   {content}                    → yield_content  (slot pattern in components)
+  #
   class PhlexCompiler
     HTML_VOID_ELEMENTS = %w(area base br col embed hr img input link meta source track wbr).to_set
 
@@ -117,11 +123,27 @@ module Rbexy
       end
     end
 
-    # { ruby_expr } in text position → plain(ruby_expr)
-    # Phlex's plain() auto-escapes via CGI.escapeHTML
+    # { ruby_expr } in text position:
+    #
+    #   {content}        → yield_content  (children slot)
+    #   {"Hello"}        → __rbx_expr_out("Hello")  → plain() with auto-escape
+    #   {render Foo.new} → __rbx_expr_out(render Foo.new)
     def compile_expression_group(node)
+      # Special case: bare `content` identifier → forward children via Phlex yield
+      if content_call?(node)
+        return "yield"
+      end
+
       expr = compile_expression_group_value(node)
       "__rbx_expr_out(#{expr})"
+    end
+
+    # Returns true when the expression group is a bare `content` identifier.
+    # This is the JSX children-slot pattern: {content}
+    def content_call?(node)
+      node.members.length == 1 &&
+        node.members.first.is_a?(Nodes::Expression) &&
+        node.members.first.content.strip == "content"
     end
 
     # Returns the raw ruby expression string (no output call wrap)
