@@ -197,7 +197,7 @@ module Grsx
     end
 
     def eventually!(token_name)
-      tokens[position..-1].first { |t| t[0] == token_name } ||
+      tokens[position..-1].find { |t| t[0] == token_name } ||
         raise(ParseError, "Expected to find a #{token_name} but never did")
     end
 

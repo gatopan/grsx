@@ -51,7 +51,6 @@ module Grsx
       @curr_default_text = ""
       @curr_quoted_text = ""
       @tokens = []
-      @line = 1
     end
 
     # Current line number (1-indexed). Derived from the scanner's current
