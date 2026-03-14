@@ -19,19 +19,17 @@ RSpec.describe Grsx::Lexer do
   end
 
   it "tokenizes component tags" do
-    redefine { ButtonComponent = Class.new }
+    stub_const("ButtonComponent", Class.new)
 
-    class Resolver
-      def component?(name, template)
-        name == "Button"
-      end
-
-      def component_class(name, template)
-        name == "Button" ? ButtonComponent : nil
-      end
+    resolver = Object.new
+    def resolver.component?(name, template)
+      name == "Button"
+    end
+    def resolver.component_class(name, template)
+      name == "Button" ? ButtonComponent : nil
     end
 
-    subject = Grsx::Lexer.new(Grsx::Template.new("<Button></Button>"), Resolver.new)
+    subject = Grsx::Lexer.new(Grsx::Template.new("<Button></Button>"), resolver)
     expect(subject.tokenize).to eq [
       [:OPEN_TAG_DEF],
       [:TAG_DETAILS, { name: "Button", type: :component, component_class: ButtonComponent }],

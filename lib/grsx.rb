@@ -7,6 +7,7 @@ module Grsx
   autoload :Lexer,          "grsx/lexer"
   autoload :Parser,         "grsx/parser"
   autoload :Nodes,          "grsx/nodes"
+  autoload :RbxDSL,         "grsx/rbx_dsl"
   autoload :PhlexRuntime,   "grsx/phlex_runtime"
   autoload :PhlexCompiler,  "grsx/phlex_compiler"
   autoload :PhlexComponent, "grsx/phlex_component"
