@@ -238,4 +238,59 @@ RSpec.describe Rbexy::PhlexComponent do
       expect(html).to include("<span>inner</span>")
     end
   end
+
+  describe ".props DSL" do
+    it "generates an initialize with required keyword args" do
+      klass = define_component("<h1>{@title}</h1>") { props :title }
+      html = klass.new(title: "Hello").call
+      expect(html).to include("Hello")
+    end
+
+    it "generates an initialize with default keyword args" do
+      klass = define_component("<span>{@size}</span>") { props size: :md }
+      expect(klass.new.call).to include("md")
+      expect(klass.new(size: :lg).call).to include("lg")
+    end
+
+    it "supports mixed required and default props" do
+      klass = define_component("<p>{@label} {@variant}</p>") do
+        props :label, variant: :primary
+      end
+      expect(klass.new(label: "OK").call).to include("OK")
+      expect(klass.new(label: "OK").call).to include("primary")
+      expect(klass.new(label: "OK", variant: :danger).call).to include("danger")
+    end
+
+    it "exposes _declared_props metadata" do
+      klass = define_component("<div />") { props :title, size: :md }
+      expect(klass._declared_props[:required]).to eq([:title])
+      expect(klass._declared_props[:defaults]).to eq({ size: :md })
+    end
+
+    it "raises ArgumentError for missing required props" do
+      klass = define_component("<div>{@name}</div>") { props :name }
+      expect { klass.new }.to raise_error(ArgumentError, /name/)
+    end
+  end
+
+  describe "streaming" do
+    it "writes HTML to an IO-compatible buffer" do
+      klass = define_component("<article><p>streamed</p></article>")
+      buf = StringIO.new
+      klass.new.call(buf)
+      expect(buf.string).to include("<article>")
+      expect(buf.string).to include("streamed")
+    end
+
+    it "matches string output from normal call" do
+      klass = define_component("<div class=\"x\">{@val}</div>") do
+        props :val
+      end
+      expected = klass.new(val: "hello").call
+      buf = StringIO.new
+      klass.new(val: "hello").call(buf)
+      expect(buf.string).to eq(expected)
+    end
+  end
 end
+

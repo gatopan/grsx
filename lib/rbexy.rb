@@ -15,6 +15,7 @@ module Rbexy
   autoload :PhlexRuntime, "rbexy/phlex_runtime"
   autoload :PhlexCompiler, "rbexy/phlex_compiler"
   autoload :PhlexComponent, "rbexy/phlex_component"
+  autoload :PropInspector,  "rbexy/prop_inspector"
   autoload :ComponentContext, "rbexy/component_context"
   autoload :Configuration, "rbexy/configuration"
   autoload :ComponentResolver, "rbexy/component_resolver"

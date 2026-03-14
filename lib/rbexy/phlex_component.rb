@@ -67,6 +67,43 @@ module Rbexy
           end
         end
       end
+
+      # Declare typed props with optional defaults — auto-generates initialize.
+      #
+      #   class CardComponent < Rbexy::PhlexComponent
+      #     props :title, :body, size: :md, disabled: false
+      #   end
+      #
+      # This is exactly equivalent to:
+      #
+      #   def initialize(title:, body:, size: :md, disabled: false)
+      #     @title    = title
+      #     @body     = body
+      #     @size     = size
+      #     @disabled = disabled
+      #   end
+      #
+      # You can still override initialize manually when you need logic
+      # beyond simple ivar assignment.
+      def props(*required_names, **defaults)
+        @_declared_props = { required: required_names.map(&:to_sym), defaults: defaults }
+
+        # Build initialize parameter list
+        params = required_names.map { |n| "#{n}:" }
+        defaults.each { |k, v| params << "#{k}: #{v.inspect}" }
+
+        # Build ivar assignment lines
+        assignments = (required_names + defaults.keys).map { |n| "  @#{n} = #{n}" }
+
+        class_eval(<<~RUBY, __FILE__, __LINE__ + 1)
+          def initialize(#{params.join(", ")})
+          #{assignments.join("\n")}
+          end
+        RUBY
+      end
+
+      # Returns the declared props hash, or nil if not declared.
+      attr_reader :_declared_props
     end
 
     # Render a named slot. Falls back silently if no slot content was provided.
