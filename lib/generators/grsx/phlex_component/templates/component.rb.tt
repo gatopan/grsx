@@ -1,4 +1,4 @@
-class <%= component_class_name %> < Rbexy::PhlexComponent
+class <%= component_class_name %> < Grsx::PhlexComponent
 <% if slot_names.any? -%>
   slots <%= slot_names.map { |s| ":#{s}" }.join(", ") %>
 

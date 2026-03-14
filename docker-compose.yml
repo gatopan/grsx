@@ -4,9 +4,9 @@ volumes:
   bundle:
 
 services:
-  rbexy:
+  grsx:
     build: .
-    image: rbexy
+    image: grsx
     volumes:
       - .:/app
       - bundle:/usr/local/bundle
@@ -15,7 +15,7 @@ services:
       - $HOME/.gem/credentials:/root/.gem/credentials
     working_dir: /app
   dummy:
-    image: rbexy
+    image: grsx
     volumes:
       - .:/app
       - bundle:/usr/local/bundle
