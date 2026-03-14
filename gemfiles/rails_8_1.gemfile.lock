@@ -1,5 +1,5 @@
 PATH
-  remote: .
+  remote: ..
   specs:
     grsx (0.1.0)
       activesupport (>= 7.1)
@@ -126,7 +126,6 @@ GEM
     marcel (1.1.0)
     method_source (1.1.0)
     mini_mime (1.1.5)
-    mini_portile2 (2.8.9)
     minitest (6.0.2)
       drb (~> 2.0)
       prism (~> 1.5)
@@ -141,8 +140,7 @@ GEM
     net-smtp (0.5.1)
       net-protocol
     nio4r (2.7.5)
-    nokogiri (1.19.1)
-      mini_portile2 (~> 2.8.2)
+    nokogiri (1.19.1-x86_64-darwin)
       racc (~> 1.4)
     phlex (2.4.1)
       refract (~> 1.0)
@@ -236,6 +234,7 @@ GEM
       rspec-support (~> 3.13)
     rspec-support (3.13.7)
     securerandom (0.4.1)
+    sqlite3 (2.9.1-x86_64-darwin)
     stringio (3.2.0)
     thor (1.5.0)
     timeout (0.6.1)
@@ -251,7 +250,7 @@ GEM
     zeitwerk (2.7.5)
 
 PLATFORMS
-  ruby
+  x86_64-darwin
 
 DEPENDENCIES
   appraisal (~> 2.2)
@@ -265,10 +264,11 @@ DEPENDENCIES
   phlex (~> 2.4)
   phlex-rails (~> 2.4)
   pry-byebug
-  rails (>= 7.1)
+  rails (~> 8.1.0)
   rake
   rspec (~> 3.12)
   rspec-rails (~> 6.0, >= 6.0.3)
+  sqlite3 (~> 2.1)
 
 BUNDLED WITH
    2.5.6
