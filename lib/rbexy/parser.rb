@@ -69,7 +69,7 @@ module Rbexy
 
       take!(:CLOSE_TAG_DEF)
 
-      children = parse_children
+      children = parse_children(details[:name])
 
       if details[:type] == :component
         Nodes::ComponentElement.new(details[:component_class], members, children)
@@ -120,7 +120,7 @@ module Rbexy
       attr_class.new(name, value)
     end
 
-    def parse_children
+    def parse_children(expected_name)
       children = []
 
       eventually!(:OPEN_TAG_END)
@@ -128,7 +128,13 @@ module Rbexy
         children << parse_token
       end
 
-      take(:TAG_NAME)
+      if tag_name_token = take(:TAG_NAME)
+        closing_name = tag_name_token[1]
+        if closing_name != expected_name
+          raise ParseError, "Mismatched tag: expected </#{expected_name}> but got </#{closing_name}>"
+        end
+      end
+
       take!(:CLOSE_TAG_END)
 
       children
