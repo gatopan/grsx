@@ -9,10 +9,11 @@ module Rbexy
   # Phlex element methods directly (div, span, etc.) and renders component
   # instances via render().
   class PhlexRuntime < Phlex::HTML
-    include Phlex::Rails::Helpers
-
-    # Allow the runtime to carry Rails view context helpers (link_to, image_tag, etc.)
-    attr_reader :view_context
+    # Include ALL phlex-rails helper adapters (mirrors PhlexComponent).
+    Phlex::Rails::Helpers.constants.each do |helper_name|
+      mod = Phlex::Rails::Helpers.const_get(helper_name)
+      include mod if mod.is_a?(Module)
+    end
 
     # Called by PhlexCompiler-generated code for inline expressions: {expr}
     #
@@ -43,8 +44,7 @@ module Rbexy
       nil
     end
 
-    def initialize(view_context: nil, assigns: {})
-      @view_context = view_context
+    def initialize(assigns: {})
       assigns.each { |k, v| instance_variable_set("@#{k}", v) }
     end
 
@@ -58,18 +58,9 @@ module Rbexy
       Phlex::SGML::SafeValue.new(html_string.to_s)
     end
 
-    # Delegate unknown method calls to the Rails view_context if present,
-    # mirroring how Rbexy::Component delegates via method_missing.
-    def method_missing(meth, *args, **kwargs, &block)
-      if view_context&.respond_to?(meth, true)
-        view_context.send(meth, *args, **kwargs, &block)
-      else
-        super
-      end
-    end
-
-    def respond_to_missing?(method_name, include_all)
-      view_context&.respond_to?(method_name, include_all) || super
-    end
+    # Rails view_context is accessed via phlex-rails' context[:rails_view_context]
+    # which is set automatically during render_in. We no longer carry our own
+    # @view_context ivar or method_missing delegation — phlex-rails' SGML#method_missing
+    # provides better error hints ("Try including Phlex::Rails::Helpers::LinkTo").
   end
 end

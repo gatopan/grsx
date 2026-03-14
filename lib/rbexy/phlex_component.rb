@@ -43,7 +43,17 @@ module Rbexy
   #   render card
   #
   class PhlexComponent < Phlex::HTML
-    include Phlex::Rails::Helpers
+    # Include ALL phlex-rails helper adapters so link_to, form_with,
+    # image_tag, url_for, etc. just work in every .rbx template without
+    # per-component opt-in.
+    #
+    # `include Phlex::Rails::Helpers` only imports the module namespace —
+    # it does NOT include individual helpers like LinkTo, FormWith, etc.
+    # We iterate all constants and include each module explicitly.
+    Phlex::Rails::Helpers.constants.each do |helper_name|
+      mod = Phlex::Rails::Helpers.const_get(helper_name)
+      include mod if mod.is_a?(Module)
+    end
 
     # --- Named slots ---
 
