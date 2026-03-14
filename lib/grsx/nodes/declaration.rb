@@ -6,10 +6,6 @@ module Grsx
       def initialize(content)
         @content = content
       end
-
-      def precompile
-        [Raw.new(Util.escape_string(content))]
-      end
     end
   end
 end

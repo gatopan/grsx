@@ -1,6 +1,5 @@
 module Grsx
   module Nodes
-    autoload :Util, "grsx/nodes/util"
     autoload :AbstractNode, "grsx/nodes/abstract_node"
     autoload :Root, "grsx/nodes/root"
     autoload :Raw, "grsx/nodes/raw"

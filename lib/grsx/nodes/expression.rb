@@ -6,10 +6,6 @@ module Grsx
       def initialize(content)
         @content = content
       end
-
-      def compile
-        content
-      end
     end
   end
 end

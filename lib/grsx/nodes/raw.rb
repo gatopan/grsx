@@ -1,18 +1,10 @@
 module Grsx
   module Nodes
     class Raw < AbstractNode
-      attr_reader :content, :template
+      attr_reader :content
 
-      OUTPUT = "@output_buffer.safe_concat('%s'.freeze);"
-      EXPR_STRING = "'%s'.html_safe.freeze"
-
-      def initialize(content, template: OUTPUT)
+      def initialize(content)
         @content = content
-        @template = template
-      end
-
-      def compile
-        template % content
       end
 
       def merge(other_raw)

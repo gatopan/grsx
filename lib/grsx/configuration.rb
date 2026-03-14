@@ -1,7 +1,6 @@
 module Grsx
   class Configuration
     attr_accessor :template_paths
-    attr_accessor :debug
 
     def template_paths
       @template_paths ||= []

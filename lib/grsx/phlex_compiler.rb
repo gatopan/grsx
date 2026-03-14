@@ -3,7 +3,7 @@ module Grsx
   #
   # The emitted code is suitable for evaluation inside a Grsx::PhlexComponent
   # (or Grsx::PhlexRuntime for standalone use).  All output goes through
-  # Phlex's structural buffer — no ActionView @output_buffer.
+  # Phlex's structural buffer.
   #
   # Key mappings from JSX → Phlex DSL:
   #

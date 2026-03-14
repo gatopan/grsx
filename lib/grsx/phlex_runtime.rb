@@ -3,11 +3,10 @@ require "phlex-rails"
 
 module Grsx
   # A Phlex::HTML subclass that serves as the execution context for compiled
-  # .rbx templates when Grsx.configuration.render_target == :phlex.
+  # .rbx templates in standalone (non-component) rendering.
   #
-  # Instead of ActionView's @output_buffer, compiled Phlex-target code calls
-  # Phlex element methods directly (div, span, etc.) and renders component
-  # instances via render().
+  # Compiled code calls Phlex element methods directly (div, span, etc.)
+  # and renders component instances via render().
   class PhlexRuntime < Phlex::HTML
     # Include ALL phlex-rails helper adapters (mirrors PhlexComponent).
     Phlex::Rails::Helpers.constants.each do |helper_name|
