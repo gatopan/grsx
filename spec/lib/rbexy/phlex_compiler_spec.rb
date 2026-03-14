@@ -115,4 +115,47 @@ RSpec.describe Rbexy::PhlexCompiler do
       expect(code).to include("__rbx_expr_out(@title)")
     end
   end
+
+  describe "attribute name normalization" do
+    it "normalizes className to class" do
+      code = phlex_compile('<div className="active">hi</div>')
+      expect(code).to include("class: \"active\"")
+    end
+
+    it "normalizes htmlFor to for" do
+      code = phlex_compile('<label htmlFor="email">Email</label>')
+      expect(code).to include("for: \"email\"")
+    end
+
+    it "normalizes camelCase to snake_case" do
+      code = phlex_compile('<input tabIndex="1" />')
+      expect(code).to include("tab_index: \"1\"")
+    end
+
+    it "normalizes kebab-case to underscore" do
+      code = phlex_compile('<div data-controller="dropdown">x</div>')
+      expect(code).to include("data_controller: \"dropdown\"")
+    end
+  end
+
+  describe "key prop stripping" do
+    it "silently drops the key prop from component calls" do
+      stub_const("ItemComponent", Class.new)
+      code = phlex_compile('<Item key={i} title="x" />')
+      expect(code).to include("title:")
+      expect(code).not_to include("key:")
+    end
+  end
+
+  describe "conditional rendering patterns" do
+    it "generates code that works with && when truthy" do
+      html = render_phlex('<div>{1 > 0 && "yes"}</div>')
+      expect(html).to include("yes")
+    end
+
+    it "is safe for falsy && (false short-circuit)" do
+      html = render_phlex('<div>{false && "nope"}</div>')
+      expect(html).not_to include("nope")
+    end
+  end
 end

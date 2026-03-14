@@ -102,6 +102,50 @@ RSpec.describe Rbexy::PhlexComponent do
     end
   end
 
+  # --- Compile error messages ---
+  describe "TemplateCompileError" do
+    it "raises TemplateCompileError with the .rbx filename for syntax errors" do
+      file = Tempfile.new(["bad_component", ".rbx"])
+      file.write("<div {broken")
+      file.flush
+
+      klass = Class.new(Rbexy::PhlexComponent)
+      expect {
+        klass.send(:compile_template, file.path)
+      }.to raise_error(Rbexy::PhlexComponent::TemplateCompileError, /bad_component/)
+    ensure
+      file.close
+      file.unlink
+    end
+  end
+
+  # --- Conditional component rendering ---
+  describe "conditional rendering with components" do
+    it "renders a child component with && when condition is true" do
+      inner_class = define_component("<em>shown</em>")
+      stub_const("InnerComponent", inner_class)
+
+      klass = define_component("<div>{@show && render(InnerComponent.new)}</div>") do
+        def initialize(show:); @show = show; end
+      end
+
+      html = klass.new(show: true).call
+      expect(html).to include("shown")
+    end
+
+    it "skips a child component with && when condition is false" do
+      inner_class = define_component("<em>should-not-appear</em>")
+      stub_const("HiddenComponent", inner_class)
+
+      klass = define_component("<div>{@show && render(HiddenComponent.new)}</div>") do
+        def initialize(show:); @show = show; end
+      end
+
+      html = klass.new(show: false).call
+      expect(html).not_to include("should-not-appear")
+    end
+  end
+
   it "renders instance variables from initialize" do
     klass = define_component("<p>{@message}</p>") do
       def initialize(message:)

@@ -127,25 +127,55 @@ module Rbexy
 
     # Handles all { ruby_expr } in compiled templates:
     #
-    #   Array / Enumerable → render each item (map pattern just works)
-    #   Phlex component    → render() (structural, shares buffer)
-    #   Phlex SafeObject   → raw()
-    #   nil / false        → no-op  (conditional rendering: {flag && <Foo />})
-    #   ""                → no-op
-    #   anything else      → plain(value.to_s)  (CGI auto-escaped)
+    #   render(<Comp />) already wrote to buffer → returns nil → no-op here
+    #   Array/Enumerable    → each element rendered recursively
+    #   Phlex::SafeObject   → raw()
+    #   nil / false / ""   → silent no-op (safe for && and || patterns)
+    #   anything else       → plain(value.to_s)  (CGI auto-escaped)
     def __rbx_expr_out(value)
       case value
+      when nil, false, ""
+        nil  # {condition && <Foo />}: falsy short-circuit
       when Array, Enumerable
-        # {@items.map { |i| <Item title={i.name} /> }} — just works
+        # {@items.map { |i| <Item /> }}: map returns [nil,nil,...] after render→nil
         value.each { |v| __rbx_expr_out(v) }
       when Phlex::SGML
+        # Safety net: if a user passes a component directly (e.g. {MyComp.new})
+        # render it normally. Our render override returns nil so this branch is
+        # only hit in direct-instance-passing scenarios, not {cond && <Comp />}.
         render(value)
       when Phlex::SGML::SafeObject
         raw(value)
-      when nil, false, ""
-        nil  # silent no-op: {condition && <Foo />} safe even when falsy
       else
         plain(value.to_s)
+      end
+    end
+
+    # Override Phlex's render to always return nil.
+    #
+    # Phlex::SGML#render returns the component instance, which would cause
+    # __rbx_expr_out to see a Phlex::SGML and call render() a second time
+    # (double-render bug). Returning nil short-circuits that:
+    #
+    #   {true && <Button />}  → true && render(ButtonComponent.new)  → nil
+    #                            __rbx_expr_out(nil) → no-op ✓
+    #
+    #   {@items.map { |i| <Item /> }} → map returns [nil, nil, nil]
+    #                            __rbx_expr_out([nil, nil, nil]) → no-op ✓
+    def render(renderable = nil, &block)
+      super
+      nil
+    end
+
+    # Raised when a .rbx template fails to compile (syntax or parse error).
+    # Provides the source file path and the underlying error message so
+    # developers see their .rbx line rather than a rbexy internal backtrace.
+    class TemplateCompileError < StandardError
+      attr_reader :template_path
+
+      def initialize(message, template_path:)
+        @template_path = template_path
+        super(message)
       end
     end
 
@@ -221,7 +251,15 @@ module Rbexy
 
         source = File.read(path)
         template = Rbexy::Template.new(source, path)
-        code = Rbexy.phlex_compile(template)
+
+        begin
+          code = Rbexy.phlex_compile(template)
+        rescue Rbexy::Lexer::SyntaxError, Rbexy::Parser::ParseError => e
+          raise TemplateCompileError.new(
+            "#{File.basename(path)}: #{e.message}",
+            template_path: path
+          )
+        end
 
         TEMPLATE_CACHE[path] = { mtime: mtime, code: code }
         code

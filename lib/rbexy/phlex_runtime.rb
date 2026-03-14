@@ -16,24 +16,31 @@ module Rbexy
 
     # Called by PhlexCompiler-generated code for inline expressions: {expr}
     #
-    #   Array / Enumerable → render each item recursively
-    #   Phlex::SGML        → render() (structural, shared buffer)
-    #   SafeObject         → raw()
-    #   nil / false / ""  → silent no-op
-    #   anything else     → plain(value.to_s) CGI-escaped
+    #   render(<Comp />) already wrote to buffer → returns nil → no-op here
+    #   Array/Enumerable    → each element rendered recursively
+    #   Phlex::SafeObject   → raw()
+    #   nil / false / ""   → silent no-op (safe for &&, ||, ternary)
+    #   anything else      → plain(value.to_s) CGI-escaped
     def __rbx_expr_out(value)
       case value
+      when nil, false, ""
+        nil
       when Array, Enumerable
         value.each { |v| __rbx_expr_out(v) }
       when Phlex::SGML
         render(value)
       when Phlex::SGML::SafeObject
         raw(value)
-      when nil, false, ""
-        nil
       else
         plain(value.to_s)
       end
+    end
+
+    # Return nil from render() so that {cond && <Comp />} doesn't double-render.
+    # The actual rendering is a side-effect on the buffer, not the return value.
+    def render(renderable = nil, &block)
+      super
+      nil
     end
 
     def initialize(view_context: nil, assigns: {})

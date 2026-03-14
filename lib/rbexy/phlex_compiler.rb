@@ -82,7 +82,7 @@ module Rbexy
       members.each do |m|
         case m
         when Nodes::HTMLAttr
-          key = m.name.tr("-", "_")
+          key = normalize_html_attr_key(m.name)
           val = compile_attr_value(m.value)
           parts << "#{key}: #{val}"
         when Nodes::ExpressionGroup
@@ -103,14 +103,18 @@ module Rbexy
       end
     end
 
-    # <Button label={@title} disabled />
+    # <Button label={@title} disabled />  — key prop is silently dropped
     # → render ButtonComponent.new(label: @title, disabled: "")
     def compile_component(node)
       kwargs_parts = []
       node.members.each do |m|
         case m
         when Nodes::ComponentProp
-          key = ActiveSupport::Inflector.underscore(m.name)
+          # Strip the React `key` prop — it has no server-side meaning and
+          # would otherwise cause an ArgumentError on the Ruby component.
+          next if m.name == "key"
+
+          key = normalize_component_prop_key(m.name)
           val = compile_attr_value(m.value)
           kwargs_parts << "#{key}: #{val}"
         when Nodes::ExpressionGroup
@@ -176,6 +180,27 @@ module Rbexy
     # <!DOCTYPE html> → raw(safe("<!DOCTYPE html>"))
     def compile_declaration(node)
       "raw(safe(#{node.content.inspect}))"
+    end
+
+    # Normalize HTML attribute names to Ruby keyword argument keys.
+    # Handles:
+    #   className  → class   (React compat)
+    #   htmlFor    → for     (React compat)
+    #   tabIndex   → tab_index (camelCase → snake_case)
+    #   data-foo   → data_foo  (kebab-case → underscore)
+    def normalize_html_attr_key(name)
+      return "class"    if name == "className"
+      return "for"      if name == "htmlFor"
+      # Generic camelCase → snake_case, then kebab → underscore
+      name.gsub(/([A-Z])/) { "_#{$1.downcase}" }.tr("-", "_")
+    end
+
+    # Normalize component prop names. The React `key` prop is stripped before
+    # this is called. All other props: camelCase → snake_case (for Ruby kwargs).
+    def normalize_component_prop_key(name)
+      # ActiveSupport::Inflector.underscore handles camelCase → snake_case
+      # including acronyms and consecutive capitals.
+      ActiveSupport::Inflector.underscore(name)
     end
   end
 end
