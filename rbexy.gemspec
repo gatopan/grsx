@@ -29,6 +29,10 @@ Gem::Specification.new do |spec|
   spec.add_dependency "actionview", ">= 6", "< 8.2"
   spec.add_dependency "ostruct"
 
+  # Optional: required when using the Phlex rendering backend
+  spec.add_development_dependency "phlex", "~> 2.0"
+  spec.add_development_dependency "phlex-rails", "~> 2.0"
+
   spec.add_development_dependency "appraisal", "~> 2.2"
   spec.add_development_dependency "rails", ">= 6", "< 8.2"
   spec.add_development_dependency "sprockets-rails", ">= 2", "< 4"

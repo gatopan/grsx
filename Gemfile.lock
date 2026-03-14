@@ -173,6 +173,13 @@ GEM
       nenv (~> 0.1)
       shellany (~> 0.0)
     ostruct (0.6.3)
+    phlex (2.4.1)
+      refract (~> 1.0)
+      zeitwerk (~> 2.7)
+    phlex-rails (2.4.0)
+      phlex (~> 2.4.0)
+      railties (>= 7.1, < 9)
+      zeitwerk (~> 2.7)
     pp (0.6.3)
       prettyprint
     prettyprint (0.2.0)
@@ -236,6 +243,9 @@ GEM
       erb
       psych (>= 4.0.0)
       tsort
+    refract (1.1.0)
+      prism
+      zeitwerk
     reline (0.6.3)
       io-console (~> 0.5)
     rspec (3.13.2)
@@ -301,6 +311,8 @@ DEPENDENCIES
   logger
   memory_profiler (~> 0.9.14)
   mutex_m
+  phlex (~> 2.4)
+  phlex-rails (~> 2.4)
   pry-byebug
   puma
   rails (>= 6, < 8.2)

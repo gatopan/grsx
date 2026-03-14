@@ -12,6 +12,8 @@ module Rbexy
   autoload :Parser, "rbexy/parser"
   autoload :Nodes, "rbexy/nodes"
   autoload :Runtime, "rbexy/runtime"
+  autoload :PhlexRuntime, "rbexy/phlex_runtime"
+  autoload :PhlexCompiler, "rbexy/phlex_compiler"
   autoload :ComponentContext, "rbexy/component_context"
   autoload :Configuration, "rbexy/configuration"
   autoload :ComponentResolver, "rbexy/component_resolver"
@@ -36,6 +38,21 @@ module Rbexy
       root.inject_compile_context(context)
       root.transform!
       root.precompile.compile
+    end
+
+    # Compile a .rbx template to Phlex DSL method call code.
+    # Returns a Ruby code string that can be evaluated inside a PhlexRuntime.
+    #
+    # Example:
+    #   code = Rbexy.phlex_compile(Template.new(source))
+    #   runtime = Rbexy::PhlexRuntime.new(view_context: ctx, assigns: assigns)
+    #   html = runtime.call { runtime.instance_eval(code) }
+    def phlex_compile(template, context = build_default_compile_context(template))
+      tokens = Lexer.new(template, context.element_resolver).tokenize
+      root = Parser.new(tokens).parse
+      root.inject_compile_context(context)
+      root.transform!
+      PhlexCompiler.new(root).compile
     end
 
     def evaluate(template_string, runtime = Rbexy::Runtime.new)
