@@ -1,3 +1,3 @@
 module Grsx
-  VERSION = "2.0.0.rc5"
+  VERSION = "0.1.0"
 end
