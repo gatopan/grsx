@@ -23,13 +23,13 @@ Gem::Specification.new do |spec|
   spec.require_paths = ["lib"]
 
   # Runtime
-  spec.add_dependency "activesupport", ">= 7.1"
+  spec.add_dependency "activesupport", ">= 6.1"
   spec.add_dependency "phlex",         "~> 2.0"
   spec.add_dependency "phlex-rails",   "~> 2.0"
 
   # Development / test
   spec.add_development_dependency "appraisal", "~> 2.2"
-  spec.add_development_dependency "rails", ">= 7.1"
+  spec.add_development_dependency "rails", ">= 6.1"
   spec.add_development_dependency "rspec", "~> 3.12"
   spec.add_development_dependency "rspec-rails", "~> 6.0", ">= 6.0.3"
   spec.add_development_dependency "rake"

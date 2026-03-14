@@ -1,8 +1,8 @@
 PATH
   remote: .
   specs:
-    grsx (2.0.0.rc5)
-      activesupport (>= 7.1)
+    grsx (0.1.0)
+      activesupport (>= 6.1)
       phlex (~> 2.0)
       phlex-rails (~> 2.0)
 
@@ -265,7 +265,7 @@ DEPENDENCIES
   phlex (~> 2.4)
   phlex-rails (~> 2.4)
   pry-byebug
-  rails (>= 7.1)
+  rails (>= 6.1)
   rake
   rspec (~> 3.12)
   rspec-rails (~> 6.0, >= 6.0.3)
