@@ -183,24 +183,36 @@ module Rbexy
     end
 
     # Normalize HTML attribute names to Ruby keyword argument keys.
-    # Handles:
-    #   className  → class   (React compat)
-    #   htmlFor    → for     (React compat)
-    #   tabIndex   → tab_index (camelCase → snake_case)
-    #   data-foo   → data_foo  (kebab-case → underscore)
+    #
+    # One rule: kebab-case → snake_case (the only transformation needed
+    # to make HTML attribute names legal Ruby keyword arguments).
+    #
+    #   class            → class       (Phlex accepts `class:` just fine)
+    #   data-controller  → data_controller  (Phlex re-emits as data-controller)
+    #   aria-label       → aria_label      (Phlex re-emits as aria-label)
+    #   for              → for         (no htmlFor nonsense)
+    #   id, src, href    → unchanged
+    #
+    # We do NOT do camelCase → snake_case. That's a React-ism: React uses
+    # camelCase because JSX is JavaScript where `class` / `for` are reserved.
+    # In rbx we're in Ruby; write HTML attributes as HTML writes them.
     def normalize_html_attr_key(name)
-      return "class"    if name == "className"
-      return "for"      if name == "htmlFor"
-      # Generic camelCase → snake_case, then kebab → underscore
-      name.gsub(/([A-Z])/) { "_#{$1.downcase}" }.tr("-", "_")
+      name.tr("-", "_")
     end
 
-    # Normalize component prop names. The React `key` prop is stripped before
-    # this is called. All other props: camelCase → snake_case (for Ruby kwargs).
+    # Normalize component prop names to Ruby keyword argument keys.
+    #
+    # Component props map directly to Ruby kwargs, so we accept both
+    # HTML-style kebab-case and Ruby snake_case:
+    #   card-title  → card_title  (kebab, HTML-like)
+    #   card_title  → card_title  (snake, Ruby-like, unchanged)
+    #
+    # camelCase props are also normalized via ActiveSupport::Inflector
+    # since component props are Ruby identifiers, not HTML attributes:
+    #   cardTitle   → card_title  (reasonable to accept in component context)
     def normalize_component_prop_key(name)
-      # ActiveSupport::Inflector.underscore handles camelCase → snake_case
-      # including acronyms and consecutive capitals.
-      ActiveSupport::Inflector.underscore(name)
+      # Kebab-to-underscore first, then underscore for camelCase
+      ActiveSupport::Inflector.underscore(name.tr("-", "_"))
     end
   end
 end

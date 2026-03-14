@@ -117,24 +117,29 @@ RSpec.describe Rbexy::PhlexCompiler do
   end
 
   describe "attribute name normalization" do
-    it "normalizes className to class" do
-      code = phlex_compile('<div className="active">hi</div>')
+    it "passes through simple lowercase attributes unchanged" do
+      code = phlex_compile('<div class="active">hi</div>')
       expect(code).to include("class: \"active\"")
     end
 
-    it "normalizes htmlFor to for" do
-      code = phlex_compile('<label htmlFor="email">Email</label>')
+    it "passes through 'for' on label unchanged" do
+      code = phlex_compile('<label for="email">Email</label>')
       expect(code).to include("for: \"email\"")
     end
 
-    it "normalizes camelCase to snake_case" do
-      code = phlex_compile('<input tabIndex="1" />')
+    it "converts kebab-case to underscore (the only transformation needed)" do
+      code = phlex_compile('<input tab-index="1" />')
       expect(code).to include("tab_index: \"1\"")
     end
 
-    it "normalizes kebab-case to underscore" do
+    it "converts data-* kebab attributes to underscored kwargs (Phlex re-hyphenates in output)" do
       code = phlex_compile('<div data-controller="dropdown">x</div>')
       expect(code).to include("data_controller: \"dropdown\"")
+    end
+
+    it "converts aria-* kebab attributes to underscored kwargs" do
+      code = phlex_compile('<button aria-label="Close">x</button>')
+      expect(code).to include("aria_label: \"Close\"")
     end
   end
 
