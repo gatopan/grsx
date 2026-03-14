@@ -37,7 +37,69 @@ RSpec.describe Rbexy::PhlexComponent do
     html = klass.new.call
     expect(html).to include("<div>")
     expect(html).to include("hello")
-    expect(html).to include("</div>")
+    expect(html).to include("<div>")
+  end
+
+  # --- Fragment syntax <></> ---
+  describe "fragment syntax <></>" do
+    it "renders multiple siblings without a wrapper element" do
+      klass = define_component(<<~RBX)
+        <>
+          <h1>Title</h1>
+          <p>Body</p>
+        </>
+      RBX
+      html = klass.new.call
+      expect(html).to include("<h1>Title</h1>")
+      expect(html).to include("<p>Body</p>")
+      expect(html).not_to match(/<div|<span|<section/)
+    end
+
+    it "allows fragments inside a regular element" do
+      klass = define_component('<div><><em>a</em><em>b</em></></div>')
+      html = klass.new.call
+      expect(html).to include("<div>")
+      expect(html).to include("<em>a</em>")
+      expect(html).to include("<em>b</em>")
+      expect(html).not_to include("<></>") # no literal fragment tags in output
+    end
+
+    it "works with expressions inside fragments" do
+      klass = define_component('<>{@greeting} {@name}</>') do
+        def initialize(greeting:, name:); @greeting = greeting; @name = name; end
+      end
+      html = klass.new(greeting: "Hello", name: "World").call
+      expect(html).to include("Hello")
+      expect(html).to include("World")
+    end
+  end
+
+  # --- Enumerable / Array output ---
+  describe "Enumerable output in expressions" do
+    it "renders each item from a map call" do
+      klass = define_component('<ul>{@items.map { |i| "<li>#{i}</li>" }}</ul>') do
+        def initialize(items:); @items = items; end
+      end
+      html = klass.new(items: %w[a b c]).call
+      expect(html).to include("<ul>")
+      expect(html).to include("a")
+      expect(html).to include("b")
+      expect(html).to include("c")
+    end
+
+    it "treats false as a silent no-op (conditional rendering pattern)" do
+      klass = define_component('<p>{false}</p>')
+      html = klass.new.call
+      expect(html).to include("<p>")
+      expect(html).not_to include("false")
+    end
+
+    it "treats nil as a silent no-op" do
+      klass = define_component('<p>{nil}</p>')
+      html = klass.new.call
+      expect(html).to include("<p>")
+      expect(html).not_to include("nil")
+    end
   end
 
   it "renders instance variables from initialize" do

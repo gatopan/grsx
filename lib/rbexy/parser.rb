@@ -26,7 +26,7 @@ module Rbexy
     end
 
     def parse_token
-      parse_text || parse_newline || parse_expression || parse_tag || parse_declaration
+      parse_text || parse_newline || parse_expression || parse_fragment || parse_tag || parse_declaration
     end
 
     def parse_text
@@ -55,6 +55,17 @@ module Rbexy
     def parse_expression_body
       return unless token = take(:EXPRESSION_BODY)
       Nodes::Expression.new(token[1])
+    end
+
+    def parse_fragment
+      return unless take(:OPEN_FRAGMENT)
+
+      children = []
+      until take(:CLOSE_FRAGMENT)
+        children << parse_token
+      end
+
+      Nodes::Fragment.new(children)
     end
 
     def parse_tag
@@ -206,10 +217,12 @@ module Rbexy
     end
 
     def validate_all_tags_close!
-      open_count = tokens.count { |t| t[0] == :OPEN_TAG_DEF }
-      close_count = tokens.count { |t| t[0] == :OPEN_TAG_END }
+      open_count  = tokens.count { |t| t[0] == :OPEN_TAG_DEF } +
+                    tokens.count { |t| t[0] == :OPEN_FRAGMENT }
+      close_count = tokens.count { |t| t[0] == :OPEN_TAG_END } +
+                    tokens.count { |t| t[0] == :CLOSE_FRAGMENT }
       if open_count != close_count
-        raise(ParseError, "#{open_count - close_count} tags fail to close. All tags must close, either <NAME></NAME> or self-closing <NAME />")
+        raise(ParseError, "#{open_count - close_count} tags fail to close. All tags must close, either <NAME></NAME>, self-closing <NAME />, or <>...</>")
       end
     end
   end

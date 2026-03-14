@@ -16,7 +16,7 @@ module Rbexy
       expression_content: /[^}{"'<]+/,
       open_tag_def: /<(?!\/)/,
       open_tag_end: /<\//,
-      close_tag: /\s*\/?>/,
+      close_tag: /\s*\/?>/ ,
       close_self_closing_tag: /\s*\/>/,
       tag_name: /\/?[A-Za-z0-9\-_.]+/,
       text_content: /[^<{#]+/,
@@ -69,8 +69,15 @@ module Rbexy
           if scanner.scan(PATTERNS[:open_tag_def])
             open_tag_def
           elsif scanner.scan(PATTERNS[:open_tag_end])
-            tokens << [:OPEN_TAG_END]
-            stack.push(:tag_end)
+            # Check if this is </> (fragment close) vs </tagname>
+            if scanner.check(/>\s*/)
+              scanner.scan(/>\s*/)
+              tokens << [:CLOSE_FRAGMENT]
+              stack.pop
+            else
+              tokens << [:OPEN_TAG_END]
+              stack.push(:tag_end)
+            end
           elsif scanner.scan(PATTERNS[:open_expression])
             open_expression
           elsif scanner.scan(PATTERNS[:comment])
@@ -247,8 +254,16 @@ module Rbexy
     end
 
     def open_tag_def
-      tokens << [:OPEN_TAG_DEF]
-      stack.push(:tag, :tag_def)
+      # Lookahead: if the scanner is immediately at `>` (with optional leading whitespace)
+      # then this is a JSX fragment opener `<>` — emit OPEN_FRAGMENT and stay in current context.
+      if scanner.check(/\s*>/)
+        scanner.scan(/\s*>/)
+        tokens << [:OPEN_FRAGMENT]
+        stack.push(:tag)  # enter :tag context so children are parsed, fragment close handled above
+      else
+        tokens << [:OPEN_TAG_DEF]
+        stack.push(:tag, :tag_def)
+      end
     end
 
     def open_expression

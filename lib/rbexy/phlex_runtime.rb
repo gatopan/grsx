@@ -15,17 +15,21 @@ module Rbexy
     attr_reader :view_context
 
     # Called by PhlexCompiler-generated code for inline expressions: {expr}
-    # - Phlex::SGML subclasses: rendered structurally (shared buffer)
-    # - SafeValue: written raw
-    # - nil: no-op
-    # - anything else: .to_s and auto-escaped via plain()
+    #
+    #   Array / Enumerable → render each item recursively
+    #   Phlex::SGML        → render() (structural, shared buffer)
+    #   SafeObject         → raw()
+    #   nil / false / ""  → silent no-op
+    #   anything else     → plain(value.to_s) CGI-escaped
     def __rbx_expr_out(value)
       case value
+      when Array, Enumerable
+        value.each { |v| __rbx_expr_out(v) }
       when Phlex::SGML
         render(value)
       when Phlex::SGML::SafeObject
         raw(value)
-      when nil, ""
+      when nil, false, ""
         nil
       else
         plain(value.to_s)

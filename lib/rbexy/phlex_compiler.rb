@@ -36,8 +36,9 @@ module Rbexy
 
     def compile_node(node)
       case node
-      when Nodes::HTMLElement    then compile_html(node)
+      when Nodes::HTMLElement      then compile_html(node)
       when Nodes::ComponentElement then compile_component(node)
+      when Nodes::Fragment         then compile_fragment(node)
       when Nodes::ExpressionGroup  then compile_expression_group(node)
       when Nodes::Text             then compile_text(node)
       when Nodes::Newline          then ""
@@ -45,6 +46,12 @@ module Rbexy
       else
         raise "PhlexCompiler: unknown AST node #{node.class}"
       end
+    end
+
+    # <></> → children rendered inline, no wrapper element.
+    # The JSX fragment pattern eliminates the need for meaningless <div> wrappers.
+    def compile_fragment(node)
+      compile_nodes(node.children)
     end
 
     # <div class="foo"> ... </div>

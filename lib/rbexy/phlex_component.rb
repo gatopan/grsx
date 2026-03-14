@@ -126,16 +126,26 @@ module Rbexy
     # --- Expression output ---
 
     # Handles all { ruby_expr } in compiled templates:
-    #   Phlex component  → render() (structural, shares buffer)
-    #   Phlex SafeObject → raw()
-    #   nil / ""         → no-op
-    #   anything else    → plain(value.to_s)  (CGI auto-escaped)
+    #
+    #   Array / Enumerable → render each item (map pattern just works)
+    #   Phlex component    → render() (structural, shares buffer)
+    #   Phlex SafeObject   → raw()
+    #   nil / false        → no-op  (conditional rendering: {flag && <Foo />})
+    #   ""                → no-op
+    #   anything else      → plain(value.to_s)  (CGI auto-escaped)
     def __rbx_expr_out(value)
       case value
-      when Phlex::SGML      then render(value)
-      when Phlex::SGML::SafeObject then raw(value)
-      when nil, ""          then nil
-      else                  plain(value.to_s)
+      when Array, Enumerable
+        # {@items.map { |i| <Item title={i.name} /> }} — just works
+        value.each { |v| __rbx_expr_out(v) }
+      when Phlex::SGML
+        render(value)
+      when Phlex::SGML::SafeObject
+        raw(value)
+      when nil, false, ""
+        nil  # silent no-op: {condition && <Foo />} safe even when falsy
+      else
+        plain(value.to_s)
       end
     end
 
@@ -218,9 +228,15 @@ module Rbexy
       end
 
       def define_view_template(compiled_code)
-        # Define view_template as a real Ruby method via class_eval.
-        # No eval at render time — the compiled code is a true method body.
-        class_eval(<<~RUBY, __FILE__, __LINE__ + 1)
+        # Pass the .rbx file path and line 1 to class_eval so that Ruby's
+        # backtraces point directly to the template file when errors occur.
+        #
+        # Before: view_template defined at phlex_component.rb:233 (useless)
+        # After:  error at card_component.rbx:5:in 'view_template'
+        #
+        # @_rbx_template_path is set by load_rbx_template before we get here.
+        source_file = @_rbx_template_path || __FILE__
+        class_eval(<<~RUBY, source_file, 1)
           def view_template
             #{compiled_code}
           end

@@ -15,5 +15,6 @@ module Rbexy
     autoload :ComponentProp, "rbexy/nodes/component_prop"
     autoload :Newline, "rbexy/nodes/newline"
     autoload :Declaration, "rbexy/nodes/declaration"
+    autoload :Fragment, "rbexy/nodes/fragment"
   end
 end
