@@ -23,7 +23,7 @@ _But what about Javascript and client-side behavior?_ You probably don't need as
 
 ## Example
 
-Use your custom Ruby class components from `.rbx` templates just like you would React components in JSX:
+Use your custom Ruby class components from `.rsx` templates just like you would React components in JSX:
 
 ```jsx
 <body>
@@ -51,7 +51,7 @@ class ButtonComponent < Grsx::Component
 end
 ```
 
-with their accompying template files (also can be `.rbx`!), scoped scss files, JS and other assets (not shown).
+with their accompying template files (also can be `.rsx`!), scoped scss files, JS and other assets (not shown).
 
 ## Getting Started (with Rails)
 
@@ -75,7 +75,7 @@ class HelloWorldComponent < Grsx::Component
 end
 ```
 
-With a template `app/components/hello_world_component.rbx`:
+With a template `app/components/hello_world_component.rsx`:
 
 ```jsx
 <div>
@@ -84,7 +84,7 @@ With a template `app/components/hello_world_component.rbx`:
 </div>
 ```
 
-Add a controller, action, route, and `rbx` view like `app/views/hello_worlds/index.rbx`:
+Add a controller, action, route, and `rsx` view like `app/views/hello_worlds/index.rsx`:
 
 ```jsx
 <HelloWorld name="Nick">
@@ -198,7 +198,7 @@ end
 By default, we'll look for a template file in the same directory as the class and with a matching filename:
 
 ```jsx
-// app/components/page_header_component.rbx
+// app/components/page_header_component.rsx
 <h1>{@title}</h1>
 ```
 
@@ -262,7 +262,7 @@ end
 
 #### Usage with ERB
 
-We recommend using `Grsx::Component` with the rbx template language, but if you prefer ERB... a component's template can be `.html.erb` and you  can render a component from ERB like so:
+We recommend using `Grsx::Component` with the rsx template language, but if you prefer ERB... a component's template can be `.html.erb` and you  can render a component from ERB like so:
 
 Rails 6.1:
 
@@ -280,7 +280,7 @@ Rails 6.0 or earlier:
 
 ### Usage with any component library
 
-You can use the rbx template language with other component libraries like Github's view_component. You just need to tell Grsx how to render the component:
+You can use the rsx template language with other component libraries like Github's view_component. You just need to tell Grsx how to render the component:
 
 ```ruby
 # config/initializers/grsx.rb
@@ -294,13 +294,13 @@ end
 
 ## Fragment caching in Rails
 
-`.rbx` templates integrate with Rails fragment caching, automatically cachebusting when the template or its render dependencies change.
+`.rsx` templates integrate with Rails fragment caching, automatically cachebusting when the template or its render dependencies change.
 
 If you're using `Grsx::Component`, you can further benefit from component cachebusting where the fragment cache will be busted if any dependent component's template _or_ class definition changes.
 
 And you can use `<Grsx.Cache>`, a convenient wrapper for the Rails fragment cache:
 
-```rbx
+```rsx
 <Grsx.Cache key={...}>
   <p>Fragment here...</p>
   <MyButton />
@@ -346,7 +346,7 @@ Grsx.configure do |config|
 end
 ```
 
-Now any calls to `<Button>` made from `.rbx` views within `app/views/admin/` or from component templates within `app/components/admin/` will first check for `Admin::ButtonComponent` before `ButtonComponent`.
+Now any calls to `<Button>` made from `.rsx` views within `app/views/admin/` or from component templates within `app/components/admin/` will first check for `Admin::ButtonComponent` before `ButtonComponent`.
 
 ### AST Transforms
 

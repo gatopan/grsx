@@ -1,7 +1,7 @@
 module Grsx
   module Rails
     class Engine < ::Rails::Engine
-      # In development, hot-reload .rbx templates for PhlexComponent subclasses
+      # In development, hot-reload .rsx templates for PhlexComponent subclasses
       # on every request via a lightweight Rack middleware.
       initializer "grsx.phlex_reloader" do |app|
         dev_mode = if app.config.respond_to?(:enable_reloading)

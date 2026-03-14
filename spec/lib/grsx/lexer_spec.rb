@@ -62,9 +62,9 @@ RSpec.describe Grsx::Lexer do
   end
 
   it "tokenizes older html4 doctype declaration" do
-    template = <<-RBX.strip_heredoc.strip
+    template = <<-RSX.strip_heredoc.strip
       <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
-    RBX
+    RSX
 
     subject = Grsx::Lexer.new(Grsx::Template.new(template), Grsx::ComponentResolver.new)
     expect(subject.tokenize).to eq [
@@ -238,9 +238,9 @@ RSpec.describe Grsx::Lexer do
   end
 
   it "tokenizes self-closing tags within a boolean expression" do
-    template_string = <<-RBX.strip_heredoc.strip
+    template_string = <<-RSX.strip_heredoc.strip
       {true && <br />}
-    RBX
+    RSX
 
     subject = Grsx::Lexer.new(Grsx::Template.new(template_string), Grsx::ComponentResolver.new)
     expect(subject.tokenize).to eq [
@@ -257,9 +257,9 @@ RSpec.describe Grsx::Lexer do
   end
 
   it "tokenizes nested tags within a boolean expression" do
-    template_string = <<-RBX.strip_heredoc.strip
+    template_string = <<-RSX.strip_heredoc.strip
       {true && <h1><span>Hey</span></h1>}
-    RBX
+    RSX
 
     subject = Grsx::Lexer.new(Grsx::Template.new(template_string), Grsx::ComponentResolver.new)
     expect(subject.tokenize).to eq [
@@ -376,11 +376,11 @@ RSpec.describe Grsx::Lexer do
   end
 
   it "tokenizes tags within a do..end block" do
-    template = <<-RBX.strip
+    template = <<-RSX.strip
 {3.times do
   <p>Hello</p>
 end}
-RBX
+RSX
     subject = Grsx::Lexer.new(Grsx::Template.new(template), Grsx::ComponentResolver.new)
     expect(subject.tokenize).to eq [
       [:OPEN_EXPRESSION],
@@ -398,11 +398,11 @@ RBX
   end
 
   it "tokenizes tags within a do |var|..end block" do
-    template = <<-RBX.strip
+    template = <<-RSX.strip
 {3.times do |n|
   <p>Hello</p>
 end}
-RBX
+RSX
     subject = Grsx::Lexer.new(Grsx::Template.new(template), Grsx::ComponentResolver.new)
     expect(subject.tokenize).to eq [
       [:OPEN_EXPRESSION],
@@ -454,11 +454,11 @@ RBX
   end
 
   it "doesn't try to parse tags within %q(...) string notation" do
-    template_string = <<-RBX.strip_heredoc.strip
+    template_string = <<-RSX.strip_heredoc.strip
       <div attr={%q(
         <p>something</p>
       )} />
-    RBX
+    RSX
     subject = Grsx::Lexer.new(Grsx::Template.new(template_string), Grsx::ComponentResolver.new)
     expect(subject.tokenize).to eq [
       [:OPEN_TAG_DEF],
@@ -768,11 +768,11 @@ RBX
 
   context "comments" do
     it "tokenizes lines starting with # as NEWLINE" do
-      template_string = <<-RBX.strip_heredoc.strip
+      template_string = <<-RSX.strip_heredoc.strip
         Hello
         # some comment
         world
-      RBX
+      RSX
 
       subject = Grsx::Lexer.new(Grsx::Template.new(template_string), Grsx::ComponentResolver.new)
       expect(subject.tokenize).to eq [
@@ -783,10 +783,10 @@ RBX
     end
 
     it "tokenizes the first line if starting with # as NEWLINE" do
-      template_string = <<-RBX.strip_heredoc.strip
+      template_string = <<-RSX.strip_heredoc.strip
         # some comment
         Hello world
-      RBX
+      RSX
 
       subject = Grsx::Lexer.new(Grsx::Template.new(template_string), Grsx::ComponentResolver.new)
       expect(subject.tokenize).to eq [
@@ -796,10 +796,10 @@ RBX
     end
 
     it "tokenizes the last line if starting with # as NEWLINE" do
-      template_string = <<-RBX.strip_heredoc.strip
+      template_string = <<-RSX.strip_heredoc.strip
       Hello world
       # some comment
-      RBX
+      RSX
 
       subject = Grsx::Lexer.new(Grsx::Template.new(template_string), Grsx::ComponentResolver.new)
       expect(subject.tokenize).to eq [
@@ -809,11 +809,11 @@ RBX
     end
 
     it "trims trailing whitespace from text before a comment line" do
-      template_string = <<-RBX.strip_heredoc.strip
+      template_string = <<-RSX.strip_heredoc.strip
         Hello world
           # some indented comment
         Another text
-      RBX
+      RSX
 
       subject = Grsx::Lexer.new(Grsx::Template.new(template_string), Grsx::ComponentResolver.new)
       expect(subject.tokenize).to eq [
@@ -824,11 +824,11 @@ RBX
     end
 
     it "allows comments as children of tags" do
-      template_string = <<-RBX.strip_heredoc.strip
+      template_string = <<-RSX.strip_heredoc.strip
         <div>
           # some comment
         </div>
-      RBX
+      RSX
 
       subject = Grsx::Lexer.new(Grsx::Template.new(template_string), Grsx::ComponentResolver.new)
       expect(subject.tokenize).to eq [
@@ -913,11 +913,11 @@ RBX
     end
 
     it "includes the filename when a template has an identifier" do
-      template = Grsx::Template.new("<div @bad>", "/app/components/card_component.rbx")
+      template = Grsx::Template.new("<div @bad>", "/app/components/card_component.rsx")
       subject  = Grsx::Lexer.new(template, Grsx::ComponentResolver.new)
       error = nil
       begin; subject.tokenize; rescue Grsx::Lexer::SyntaxError => e; error = e; end
-      expect(error.message).to include("card_component.rbx")
+      expect(error.message).to include("card_component.rsx")
     end
   end
 end

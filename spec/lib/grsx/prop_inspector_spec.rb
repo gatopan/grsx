@@ -32,7 +32,7 @@ RSpec.describe Grsx::PropInspector do
 
   describe ".scan_tree" do
     def parse(source)
-      template = Grsx::Template.new(source, "test.rbx")
+      template = Grsx::Template.new(source, "test.rsx")
       tokens = Grsx::Lexer.new(template, Grsx.configuration.element_resolver).tokenize
       Grsx::Parser.new(tokens).parse
     end

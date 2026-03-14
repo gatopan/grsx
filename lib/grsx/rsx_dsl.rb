@@ -6,13 +6,13 @@ require "phlex-rails"
 module Grsx
   # Shared DSL methods included by both PhlexComponent and PhlexRuntime.
   #
-  # These methods form the glue between Grsx's compiled .rbx output and
+  # These methods form the glue between Grsx's compiled .rsx output and
   # Phlex's rendering API: expression output, HTML safety, render
   # nil-return, and Rails helper inclusion.
-  module RbxDSL
+  module RsxDSL
     def self.included(base)
       # Include ALL phlex-rails helper adapters so link_to, form_with,
-      # image_tag, url_for, etc. just work in every .rbx template without
+      # image_tag, url_for, etc. just work in every .rsx template without
       # per-component opt-in.
       #
       # Some helpers (e.g. Routes) reference `Rails.application` at define
@@ -35,13 +35,13 @@ module Grsx
     #   Phlex::SafeObject   → raw()  (trusted HTML, no escaping)
     #   nil / false / ""   → silent no-op (safe for && and || patterns)
     #   anything else       → plain(value.to_s)  (CGI auto-escaped, XSS-safe)
-    def __rbx_expr_out(value)
+    def __rsx_expr_out(value)
       case value
       when nil, false, ""
         nil  # {condition && <Foo />}: falsy short-circuit
       when Array, Enumerable
         # {@items.map { |i| <Item /> }}: map returns [nil,nil,...] after render→nil
-        value.each { |v| __rbx_expr_out(v) }
+        value.each { |v| __rsx_expr_out(v) }
       when Phlex::SGML
         # Safety net: if a user passes a component directly (e.g. {MyComp.new})
         # render it normally.
@@ -64,7 +64,7 @@ module Grsx
     # Override Phlex's render to always return nil.
     #
     # Phlex::SGML#render returns the component instance, which would cause
-    # __rbx_expr_out to see a Phlex::SGML and call render() a second time
+    # __rsx_expr_out to see a Phlex::SGML and call render() a second time
     # (double-render bug). Returning nil short-circuits that.
     def render(renderable = nil, &block)
       super

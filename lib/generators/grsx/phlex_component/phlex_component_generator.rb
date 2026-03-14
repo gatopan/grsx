@@ -8,14 +8,14 @@ module Grsx
       class_option :slots, type: :array, default: [],
         desc: "Named content slots to declare (e.g. --slots header footer)"
 
-      desc "Creates a Grsx::PhlexComponent with a co-located .rbx template"
+      desc "Creates a Grsx::PhlexComponent with a co-located .rsx template"
 
       def create_component_file
         template "component.rb.tt", component_rb_path
       end
 
       def create_template_file
-        template "component.rbx.tt", component_rbx_path
+        template "component.rsx.tt", component_rsx_path
       end
 
       private
@@ -24,8 +24,8 @@ module Grsx
         File.join("app", "components", class_path, "#{file_name}_component.rb")
       end
 
-      def component_rbx_path
-        File.join("app", "components", class_path, "#{file_name}_component.rbx")
+      def component_rsx_path
+        File.join("app", "components", class_path, "#{file_name}_component.rsx")
       end
 
       def slot_names

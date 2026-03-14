@@ -7,7 +7,7 @@ module Grsx
   autoload :Lexer,          "grsx/lexer"
   autoload :Parser,         "grsx/parser"
   autoload :Nodes,          "grsx/nodes"
-  autoload :RbxDSL,         "grsx/rbx_dsl"
+  autoload :RsxDSL,         "grsx/rsx_dsl"
   autoload :PhlexRuntime,   "grsx/phlex_runtime"
   autoload :PhlexCompiler,  "grsx/phlex_compiler"
   autoload :PhlexComponent, "grsx/phlex_component"
@@ -25,7 +25,7 @@ module Grsx
       @configuration ||= Configuration.new
     end
 
-    # Compile a .rbx template to Phlex DSL Ruby code.
+    # Compile a .rsx template to Phlex DSL Ruby code.
     # Returns a string that can be class_eval'd inside a PhlexComponent.
     def compile(template)
       tokens = Lexer.new(template, configuration.element_resolver).tokenize

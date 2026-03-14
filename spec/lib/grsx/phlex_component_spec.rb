@@ -2,14 +2,14 @@ require "spec_helper"
 require "tmpdir"
 
 RSpec.describe Grsx::PhlexComponent do
-  # Helper: define a PhlexComponent subclass with a given .rbx template string.
-  # Writes a real .rbx file so the auto-discovery path exercises the filesystem.
-  def define_component(rbx_source, &ruby_class_body)
+  # Helper: define a PhlexComponent subclass with a given .rsx template string.
+  # Writes a real .rsx file so the auto-discovery path exercises the filesystem.
+  def define_component(rsx_source, &ruby_class_body)
     dir = Dir.mktmpdir("grsx_phlex_spec")
-    rbx_path = File.join(dir, "my_component.rbx")
+    rsx_path = File.join(dir, "my_component.rsx")
     rb_path  = File.join(dir, "my_component.rb")
 
-    File.write(rbx_path, rbx_source)
+    File.write(rsx_path, rsx_source)
 
     # Write the .rb file so source_location returns a known path
     File.write(rb_path, <<~RUBY)
@@ -20,8 +20,8 @@ RSpec.describe Grsx::PhlexComponent do
     klass = Class.new(Grsx::PhlexComponent)
 
     # Manually trigger template loading with the known path
-    klass.define_singleton_method(:rbx_template_path) { rbx_path }
-    klass.send(:load_rbx_template)
+    klass.define_singleton_method(:rsx_template_path) { rsx_path }
+    klass.send(:load_rsx_template)
 
     if ruby_class_body
       klass.class_eval(&ruby_class_body)
@@ -43,12 +43,12 @@ RSpec.describe Grsx::PhlexComponent do
   # --- Fragment syntax <></> ---
   describe "fragment syntax <></>" do
     it "renders multiple siblings without a wrapper element" do
-      klass = define_component(<<~RBX)
+      klass = define_component(<<~RSX)
         <>
           <h1>Title</h1>
           <p>Body</p>
         </>
-      RBX
+      RSX
       html = klass.new.call
       expect(html).to include("<h1>Title</h1>")
       expect(html).to include("<p>Body</p>")
@@ -104,8 +104,8 @@ RSpec.describe Grsx::PhlexComponent do
 
   # --- Compile error messages ---
   describe "TemplateCompileError" do
-    it "raises TemplateCompileError with the .rbx filename for syntax errors" do
-      file = Tempfile.new(["bad_component", ".rbx"])
+    it "raises TemplateCompileError with the .rsx filename for syntax errors" do
+      file = Tempfile.new(["bad_component", ".rsx"])
       file.write("<div {broken")
       file.flush
 
@@ -169,12 +169,12 @@ RSpec.describe Grsx::PhlexComponent do
   end
 
   it "renders nested HTML elements" do
-    klass = define_component(<<~RBX)
+    klass = define_component(<<~RSX)
       <section>
         <h1>{@title}</h1>
         <p>body text</p>
       </section>
-    RBX
+    RSX
     klass.class_eval { def initialize(title:); @title = title; end }
     html = klass.new(title: "Hello!").call
     expect(html).to include("<section>")
@@ -313,12 +313,12 @@ RSpec.describe Grsx::PhlexComponent do
   describe "template discovery" do
     it "exposes the template path" do
       dir = Dir.mktmpdir("grsx_phlex_disc")
-      rbx_path = File.join(dir, "my_component.rbx")
-      File.write(rbx_path, "<div>discovered</div>")
+      rsx_path = File.join(dir, "my_component.rsx")
+      File.write(rsx_path, "<div>discovered</div>")
 
       klass = Class.new(Grsx::PhlexComponent)
-      klass.define_singleton_method(:rbx_template_path) { rbx_path }
-      klass.send(:load_rbx_template)
+      klass.define_singleton_method(:rsx_template_path) { rsx_path }
+      klass.send(:load_rsx_template)
 
       html = klass.new.call
       expect(html).to include("discovered")
@@ -327,20 +327,20 @@ RSpec.describe Grsx::PhlexComponent do
     end
   end
 
-  describe "#__rbx_expr_out" do
+  describe "#__rsx_expr_out" do
     subject(:runtime) { described_class.new }
 
     it "returns nil for nil" do
-      expect(runtime.__rbx_expr_out(nil)).to be_nil
+      expect(runtime.__rsx_expr_out(nil)).to be_nil
     end
 
     it "returns nil for empty string" do
-      expect(runtime.__rbx_expr_out("")).to be_nil
+      expect(runtime.__rsx_expr_out("")).to be_nil
     end
 
     it "renders Phlex components" do
       inner = Class.new(Phlex::HTML) { def view_template; span { plain("inner") }; end }
-      html = runtime.call { runtime.__rbx_expr_out(inner.new) }
+      html = runtime.call { runtime.__rsx_expr_out(inner.new) }
       expect(html).to include("<span>inner</span>")
     end
   end

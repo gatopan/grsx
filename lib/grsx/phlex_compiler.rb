@@ -142,8 +142,8 @@ module Grsx
     # { ruby_expr } in text position:
     #
     #   {content}        → yield_content  (children slot)
-    #   {"Hello"}        → __rbx_expr_out("Hello")  → plain() with auto-escape
-    #   {render Foo.new} → __rbx_expr_out(render Foo.new)
+    #   {"Hello"}        → __rsx_expr_out("Hello")  → plain() with auto-escape
+    #   {render Foo.new} → __rsx_expr_out(render Foo.new)
     def compile_expression_group(node)
       # Special case: bare `content` identifier → forward children via Phlex yield
       if content_call?(node)
@@ -151,7 +151,7 @@ module Grsx
       end
 
       expr = compile_expression_group_value(node)
-      "__rbx_expr_out(#{expr})"
+      "__rsx_expr_out(#{expr})"
     end
 
     # Returns true when the expression group is a bare `content` identifier.
@@ -200,7 +200,7 @@ module Grsx
     #
     # We do NOT do camelCase → snake_case. That's a React-ism: React uses
     # camelCase because JSX is JavaScript where `class` / `for` are reserved.
-    # In rbx we're in Ruby; write HTML attributes as HTML writes them.
+    # In rsx we're in Ruby; write HTML attributes as HTML writes them.
     def normalize_html_attr_key(name)
       name.tr("-", "_")
     end

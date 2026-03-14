@@ -5,8 +5,8 @@ require "digest"
 module Grsx
   # Base class for JSX-backed Phlex components.
   #
-  # Define your props in initialize, write your template in a co-located .rbx
-  # file. Grsx compiles the .rbx into a real view_template method — no eval
+  # Define your props in initialize, write your template in a co-located .rsx
+  # file. Grsx compiles the .rsx into a real view_template method — no eval
   # at render time.
   #
   # ## Basic usage
@@ -18,7 +18,7 @@ module Grsx
   #     end
   #   end
   #
-  #   # app/components/card_component.rbx
+  #   # app/components/card_component.rsx
   #   <article class="card">
   #     <h2>{@title}</h2>
   #     {content}
@@ -30,7 +30,7 @@ module Grsx
   #     slots :header, :footer
   #   end
   #
-  #   # card_component.rbx
+  #   # card_component.rsx
   #   <article>
   #     <header>{slot(:header)}</header>
   #     <main>{content}</main>
@@ -43,7 +43,7 @@ module Grsx
   #   render card
   #
   class PhlexComponent < Phlex::HTML
-    include RbxDSL
+    include RsxDSL
 
     # --- Named slots ---
 
@@ -131,7 +131,7 @@ module Grsx
     end
 
     # Render a named slot. Falls back silently if no slot content was provided.
-    # Used in .rbx templates as {slot(:header)}.
+    # Used in .rsx templates as {slot(:header)}.
     def slot(name)
       block = (@_slots ||= {})[name]
       instance_exec(&block) if block
@@ -148,11 +148,11 @@ module Grsx
     end
 
     # --- Expression output, safe(), render override ---
-    # See RbxDSL module for __rbx_expr_out, safe, and render nil-return.
+    # See RsxDSL module for __rsx_expr_out, safe, and render nil-return.
 
-    # Raised when a .rbx template fails to compile (syntax or parse error).
+    # Raised when a .rsx template fails to compile (syntax or parse error).
     # Provides the source file path and the underlying error message so
-    # developers see their .rbx line rather than a grsx internal backtrace.
+    # developers see their .rsx line rather than a grsx internal backtrace.
     class TemplateCompileError < StandardError
       attr_reader :template_path
 
@@ -179,27 +179,27 @@ module Grsx
         defining_file = caller_locations(1, 10)
           .find { |loc| loc.path != __FILE__ && !loc.path.end_with?("phlex_component.rb") }
           &.path
-        subclass.instance_variable_set(:@_rbx_source_rb, defining_file)
+        subclass.instance_variable_set(:@_rsx_source_rb, defining_file)
 
         super
-        subclass.load_rbx_template
+        subclass.load_rsx_template
       end
 
-      # Locate, compile, and define view_template from the co-located .rbx file.
+      # Locate, compile, and define view_template from the co-located .rsx file.
       # Called once when the subclass is first defined.
-      def load_rbx_template
-        path = rbx_template_path
+      def load_rsx_template
+        path = rsx_template_path
         return unless path && File.exist?(path)
 
         compiled = compile_template(path)
         define_view_template(compiled)
-        @_rbx_template_path = path
+        @_rsx_template_path = path
       end
 
-      # Recompile and redefine view_template if the .rbx file has changed.
+      # Recompile and redefine view_template if the .rsx file has changed.
       # Called by Grsx::Rails::PhlexReloader on each dev request.
-      def reload_rbx_template_if_changed
-        path = @_rbx_template_path
+      def reload_rsx_template_if_changed
+        path = @_rsx_template_path
         return unless path
 
         mtime = File.mtime(path)
@@ -210,16 +210,16 @@ module Grsx
         define_view_template(compiled)
       end
 
-      # Return the path to the .rbx file for this component (nil if not found).
-      def rbx_template_path
-        return @_rbx_template_path if defined?(@_rbx_template_path)
+      # Return the path to the .rsx file for this component (nil if not found).
+      def rsx_template_path
+        return @_rsx_template_path if defined?(@_rsx_template_path)
 
-        source = @_rbx_source_rb
+        source = @_rsx_source_rb
         return nil unless source
 
         base = File.basename(source, ".rb")
         dir  = File.dirname(source)
-        candidate = File.join(dir, "#{base}.rbx")
+        candidate = File.join(dir, "#{base}.rsx")
         candidate if File.exist?(candidate)
       end
 
@@ -228,7 +228,7 @@ module Grsx
         ObjectSpace.each_object(Class).select { |c| c < self }
       end
 
-      # Returns the Phlex DSL Ruby code that was compiled from the .rbx template.
+      # Returns the Phlex DSL Ruby code that was compiled from the .rsx template.
       # Useful for debugging, introspection, and writing specs that verify
       # what the compiler generates:
       #
@@ -237,7 +237,7 @@ module Grsx
       #   #      plain(@title)
       #   #    end
       def compiled_template_code
-        path = @_rbx_template_path || rbx_template_path
+        path = @_rsx_template_path || rsx_template_path
         return nil unless path
         compile_template(path)
       end
@@ -276,14 +276,14 @@ module Grsx
       end
 
       def define_view_template(compiled_code)
-        # Pass the .rbx file path and line 1 to class_eval so that Ruby's
+        # Pass the .rsx file path and line 1 to class_eval so that Ruby's
         # backtraces point directly to the template file when errors occur.
         #
         # Before: view_template defined at phlex_component.rb:233 (useless)
-        # After:  error at card_component.rbx:5:in 'view_template'
+        # After:  error at card_component.rsx:5:in 'view_template'
         #
-        # @_rbx_template_path is set by load_rbx_template before we get here.
-        source_file = @_rbx_template_path || __FILE__
+        # @_rsx_template_path is set by load_rsx_template before we get here.
+        source_file = @_rsx_template_path || __FILE__
         class_eval(<<~RUBY, source_file, 1)
           def view_template
             #{compiled_code}

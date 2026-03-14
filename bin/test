@@ -15,11 +15,11 @@ RESULT+=$?
 echo "Making template source changes to allow testing of cache-busting..."
 
 templates=(
-  "spec/dummy/app/views/caching/inline.rbx"
-  "spec/dummy/app/components/cached_thing_component.rbx"
+  "spec/dummy/app/views/caching/inline.rsx"
+  "spec/dummy/app/components/cached_thing_component.rsx"
   "spec/dummy/app/components/cached_class_thing_component.rb"
   "spec/dummy/app/components/cached_thing_call_component.rb"
-  "spec/dummy/app/views/caching/_partial_render_partial.rbx"
+  "spec/dummy/app/views/caching/_partial_render_partial.rsx"
 )
 for i in "${templates[@]}"
 do

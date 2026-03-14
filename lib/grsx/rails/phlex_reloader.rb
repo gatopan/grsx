@@ -1,6 +1,6 @@
 module Grsx
   module Rails
-    # Rack middleware that hot-reloads .rbx templates for all known
+    # Rack middleware that hot-reloads .rsx templates for all known
     # PhlexComponent subclasses on every request in development.
     #
     # Installed automatically by the Grsx Rails engine when
@@ -17,7 +17,7 @@ module Grsx
       end
 
       def call(env)
-        Grsx::PhlexComponent.all_descendants.each(&:reload_rbx_template_if_changed)
+        Grsx::PhlexComponent.all_descendants.each(&:reload_rsx_template_if_changed)
         @app.call(env)
       end
     end
