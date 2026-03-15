@@ -21,6 +21,15 @@ module Grsx
           config.template_paths << ::Rails.root.join("app", "components")
         end
       end
+
+      # Register .rsx as a first-class view template type so Rails
+      # automatically discovers app/views/**/*.rsx files.
+      initializer "grsx.template_handler" do
+        ActiveSupport.on_load(:action_view) do
+          require "grsx/template_handler"
+          ActionView::Template.register_template_handler(:rsx, Grsx::TemplateHandler.new)
+        end
+      end
     end
   end
 end

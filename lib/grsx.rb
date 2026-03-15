@@ -17,6 +17,7 @@ module Grsx
   autoload :Configuration,  "grsx/configuration"
   autoload :ComponentResolver, "grsx/component_resolver"
   autoload :Template,       "grsx/template"
+  autoload :TemplateHandler, "grsx/template_handler"
 
   class << self
     def configure
