@@ -1,119 +1,151 @@
-# GRSX — JSX-flavored templates for Ruby, powered by Phlex
+# GRSX
 
-[![Build Status](https://github.com/gatopan/grsx/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/gatopan/grsx/actions?query=branch%3Amaster)
+**JSX-flavored templates for Ruby, powered by [Phlex](https://phlex.fun).**
 
-Write server-rendered components using JSX-style `.rsx` templates that compile to [Phlex](https://phlex.fun) DSL — no eval at render time.
+[![CI](https://github.com/gatopan/grsx/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/gatopan/grsx/actions?query=branch%3Amaster)
 
-* [Getting Started](#getting-started-with-rails)
-* [Template Syntax](#template-syntax)
-* [Components](#components)
-  * [Props DSL](#props-dsl)
-  * [Named Slots](#named-slots)
-  * [Template-less components](#template-less-components)
-* [Advanced](#advanced)
-  * [Component resolution](#component-resolution)
-  * [Usage outside of Rails](#usage-outside-of-rails)
-
-## Example
-
-Use custom Phlex components from `.rsx` templates just like React components in JSX:
+Write server-rendered components using `.rsx` templates that compile directly to Phlex DSL at class-definition time — zero eval at render time.
 
 ```jsx
 <body>
-  <Hero size="fullscreen" {**splat_some_attributes}>
+  <Hero size="fullscreen" {**@extra_attrs}>
     <h1>Hello {@name}</h1>
-    <p>Welcome to GRSX.</p>
     <Button to={about_path}>Learn more</Button>
   </Hero>
 </body>
 ```
 
-Components are plain Ruby classes backed by co-located `.rsx` templates:
+## Table of Contents
+
+- [How It Works](#how-it-works)
+- [Getting Started](#getting-started)
+- [Template Syntax](#template-syntax)
+- [Components](#components)
+  - [Props](#props)
+  - [Named Slots](#named-slots)
+  - [Template-less Components](#template-less-components)
+  - [Generator](#generator)
+- [Component Resolution](#component-resolution)
+  - [Auto-namespacing](#auto-namespacing)
+- [Standalone Usage (without Rails)](#standalone-usage-without-rails)
+- [Development](#development)
+
+---
+
+## How It Works
+
+GRSX has a three-stage compilation pipeline:
+
+```
+.rsx template → Lexer → Parser → PhlexCompiler → Ruby code (Phlex DSL)
+```
+
+The compiled code is `class_eval`'d into `view_template` at class-definition time, not at render time. At render time, Phlex executes the method directly — no parsing, no eval, no overhead.
 
 ```ruby
-class HeroComponent < Grsx::PhlexComponent
-  props :size
+# card_component.rsx
+# <article class="card"><h2>{@title}</h2>{content}</article>
+
+# compiles to:
+def view_template
+  article(class: "card") do
+    h2 do
+      __rsx_expr_out(@title)
+    end
+    yield
+  end
 end
 ```
 
-```jsx
-# hero_component.rsx
-<section class={@size}>
-  {content}
-</section>
-```
+In development, the `PhlexReloader` middleware watches `.rsx` files for changes and recompiles automatically on each request.
 
-## Getting Started (with Rails)
+---
 
-Add it to your Gemfile and `bundle install`:
+## Getting Started
+
+Add to your Gemfile:
 
 ```ruby
 gem "grsx"
 ```
 
-Requires **Rails 7.1+** and **Ruby 3.1+**.
+Requires **Ruby ≥ 3.1** and **Rails ≥ 7.1**.
 
-Create your first component at `app/components/hello_world_component.rb`:
+Create a component:
 
 ```ruby
-class HelloWorldComponent < Grsx::PhlexComponent
-  props :name
+# app/components/greeting_component.rb
+class GreetingComponent < Grsx::PhlexComponent
+  def initialize(name:)
+    @name = name
+  end
 end
 ```
 
-With a template `app/components/hello_world_component.rsx`:
-
 ```jsx
+// app/components/greeting_component.rsx
 <div>
   <h1>Hello {@name}</h1>
   {content}
 </div>
 ```
 
-Render it from a controller:
+Render from a controller:
 
 ```ruby
-class HelloWorldsController < ApplicationController
+class WelcomeController < ApplicationController
   def index
-    render HelloWorldComponent.new(name: "World")
+    render GreetingComponent.new(name: "World")
   end
 end
 ```
 
-## Template Syntax
-
-Ruby expressions go in braces:
+Or from another `.rsx` template:
 
 ```jsx
-<p class={@dynamic_class}>
-  Hello {"world".upcase}
-</p>
+<Greeting name="World">
+  <p>Welcome to GRSX.</p>
+</Greeting>
 ```
+
+---
+
+## Template Syntax
+
+### Expressions
+
+Use braces `{}` to embed Ruby expressions:
+
+```jsx
+<p class={@dynamic_class}>Hello {"world".upcase}</p>
+```
+
+### Attribute Spreading
 
 Splat a hash into attributes:
 
 ```jsx
-<div {**{class: "myClass"}} {**@more_attrs}></div>
+<div {**{class: "card"}} {**@more_attrs}></div>
 ```
 
-Conditional rendering:
+### Conditionals
 
 ```jsx
 <div>
-  {some_boolean && <h1>Welcome</h1>}
-  {another_boolean ? <p>Option One</p> : <p>Option Two</p>}
+  {logged_in? && <nav>Dashboard</nav>}
+  {admin? ? <AdminPanel /> : <UserPanel />}
 </div>
 ```
 
-Loops:
+### Loops
 
 ```jsx
 <ul>
-  {[1, 2, 3].map { |n| <li>{n}</li> }}
+  {@items.map { |item| <li>{item.name}</li> }}
 </ul>
 ```
 
-Blocks:
+### Blocks
 
 ```jsx
 {link_to "/" do
@@ -121,7 +153,9 @@ Blocks:
 end}
 ```
 
-JSX fragments (no wrapper element):
+### Fragments
+
+Render multiple elements without a wrapper:
 
 ```jsx
 <>
@@ -130,41 +164,43 @@ JSX fragments (no wrapper element):
 </>
 ```
 
-Comments (lines starting with `#`):
+### Comments
+
+Lines starting with `#` are stripped from the output:
 
 ```jsx
 # This won't appear in the HTML
-<div>visible</div>
+<div>Visible</div>
 ```
+
+### Declarations
+
+Pass-through for `<!DOCTYPE>` and similar:
+
+```jsx
+<!DOCTYPE html>
+<html>
+  <body>{content}</body>
+</html>
+```
+
+---
 
 ## Components
 
-### `Grsx::PhlexComponent`
+All components inherit from `Grsx::PhlexComponent` (which extends `Phlex::HTML`).
 
-All GRSX components inherit from `Grsx::PhlexComponent` (which extends `Phlex::HTML`). Define a `.rb` file and a co-located `.rsx` template with matching names:
+Place the `.rb` file and `.rsx` template side by side with matching names — GRSX automatically discovers and compiles the template.
 
-```ruby
-# app/components/card_component.rb
-class CardComponent < Grsx::PhlexComponent
-  def initialize(title:)
-    @title = title
-  end
-end
+```
+app/components/
+  card_component.rb
+  card_component.rsx
 ```
 
-```jsx
-# app/components/card_component.rsx
-<article class="card">
-  <h2>{@title}</h2>
-  {content}
-</article>
-```
+### Props
 
-The `.rsx` template compiles to a `view_template` method at class definition time — not at render time.
-
-### Props DSL
-
-For simple prop-to-ivar mapping, use the `props` macro instead of writing `initialize` by hand:
+For simple prop-to-ivar mapping, use the `props` macro:
 
 ```ruby
 class CardComponent < Grsx::PhlexComponent
@@ -172,39 +208,55 @@ class CardComponent < Grsx::PhlexComponent
 end
 ```
 
-This generates `initialize(title:, body:, size: :md, disabled: false)` with corresponding `@title`, `@body`, `@size`, `@disabled` instance variables and `attr_reader` accessors.
+This generates an `initialize` with keyword arguments, instance variables, and `attr_reader` accessors:
+
+```ruby
+# Equivalent to writing:
+# def initialize(title:, body:, size: :md, disabled: false)
+#   @title = title; @body = body; @size = size; @disabled = disabled
+# end
+```
+
+> [!NOTE]
+> Mutable defaults (`[]`, `{}`) are rejected at class-definition time with a helpful error message. Use `nil` and set the value in a manual `initialize` instead.
+
+For complex initialization logic, override `initialize` directly instead of using `props`.
 
 ### Named Slots
 
-Declare named content slots for complex layouts:
+Declare named content areas:
 
 ```ruby
-class CardComponent < Grsx::PhlexComponent
-  slots :header, :footer
+class PageComponent < Grsx::PhlexComponent
+  slots :sidebar, :footer
 end
 ```
 
+Use in the template:
+
 ```jsx
-# card_component.rsx
-<article>
-  <header>{slot(:header)}</header>
+// page_component.rsx
+<div class="layout">
+  <aside>{slot(:sidebar)}</aside>
   <main>{content}</main>
   <footer>{slot(:footer)}</footer>
-</article>
+</div>
 ```
 
 Fill slots from the caller:
 
 ```ruby
-card = CardComponent.new
-card.with_header { render LogoComponent.new }
-card.with_footer { plain("© 2026") }
-render card
+page = PageComponent.new
+page.with_sidebar { render NavComponent.new }
+page.with_footer { plain("© 2026") }
+render page
 ```
 
-### Template-less components
+Each slot also has a predicate: `page.has_sidebar?`.
 
-Override `view_template` directly for components that don't need `.rsx`:
+### Template-less Components
+
+Override `view_template` directly for Ruby-only components:
 
 ```ruby
 class BadgeComponent < Grsx::PhlexComponent
@@ -218,25 +270,52 @@ end
 
 ### Generator
 
-Generate a component scaffold:
-
-```
+```bash
 rails generate grsx:phlex_component Card title body --slots header footer
 ```
 
-## Advanced
+Produces:
 
-### Component resolution
+```
+app/components/card_component.rb
+app/components/card_component.rsx
+```
 
-By default, GRSX resolves component tags to Ruby classes named `#{tag}Component`:
+---
 
-* `<PageHeader />` → `PageHeaderComponent`
-* `<Admin.Button />` → `Admin::ButtonComponent`
+## Component Resolution
 
-Customize with a resolver:
+GRSX resolves component tags by appending `Component` to the tag name:
+
+| RSX Tag | Ruby Class |
+|---------|-----------|
+| `<Card />` | `CardComponent` |
+| `<Admin.Button />` | `Admin::ButtonComponent` |
+| `<UI.Forms.Input />` | `UI::Forms::InputComponent` |
+
+HTML elements are detected by name and rendered as plain tags — no class lookup.
+
+### Auto-namespacing
+
+Avoid typing the namespace prefix on every component tag:
 
 ```ruby
 # config/initializers/grsx.rb
+Grsx.configure do |config|
+  config.element_resolver.component_namespaces = {
+    Rails.root.join("app", "views", "admin") => %w[Admin],
+    Rails.root.join("app", "components", "admin") => %w[Admin],
+  }
+end
+```
+
+Now `<Button />` in any `.rsx` file under `app/views/admin/` will resolve to `Admin::ButtonComponent` first, falling back to `ButtonComponent`.
+
+### Custom Resolver
+
+Replace the default resolver entirely:
+
+```ruby
 Grsx.configure do |config|
   config.element_resolver = MyResolver.new
 end
@@ -244,52 +323,49 @@ end
 
 Where `MyResolver` implements:
 
-* `component?(name, template) → Boolean`
-* `component_class(name, template) → Class`
+- `component?(name, template) → Boolean`
+- `component_class(name, template) → Class`
 
-### Usage outside of Rails
+---
 
-GRSX compiles `.rsx` to Phlex DSL Ruby code:
+## Standalone Usage (without Rails)
+
+GRSX compiles `.rsx` templates to Phlex DSL code. The compilation API works without Rails:
 
 ```ruby
-template = Grsx::Template.new("<p>{@greeting}</p>")
+template = Grsx::Template.new('<p class="greeting">{@message}</p>')
 code = Grsx.compile(template)
-# => "__rsx_expr_out(@greeting)"
+# => "p(class: \"greeting\") do\n__rsx_expr_out(@message)\nend"
 ```
 
-Use `Grsx::PhlexRuntime` for standalone rendering without Rails:
+For rendering without Rails, use `PhlexRuntime`:
 
 ```ruby
 class MyView < Grsx::PhlexRuntime
-  def initialize(greeting:)
-    @greeting = greeting
+  def initialize(message:)
+    @message = message
   end
 end
 ```
 
+---
+
 ## Development
 
-```
+```bash
 bundle install
-bundle exec rspec
+bundle exec rspec            # run test suite
+bundle exec appraisal rspec  # run against all supported Rails versions
 ```
 
-Run against all supported Rails versions:
+After updating dependency versions in the gemspec:
 
-```
-bundle exec appraisal rspec
-```
-
-When updating dependency versions in gemspec:
-
-```
+```bash
 bundle exec appraisal install
 ```
 
-## Contributing
-
-Bug reports and pull requests are welcome on GitHub at https://github.com/gatopan/grsx.
+Supported: **Rails 7.1 · 7.2 · 8.0 · 8.1**
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
+MIT — see [LICENSE.txt](LICENSE.txt).
