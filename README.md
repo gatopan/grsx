@@ -272,6 +272,32 @@ end
 
 The RSX compiles at class-definition time — same performance as a co-located file. Use whichever style fits the component's complexity.
 
+### Inline Components
+
+Define sub-components directly inside a parent class — no separate file, no global namespace pollution:
+
+```ruby
+class CardComponent < Grsx::PhlexComponent
+  Badge = component(:label, color: :blue) do
+    <<~RSX
+      <span class={@color}>{@label}</span>
+    RSX
+  end
+
+  props :title
+
+  template <<~RSX
+    <article class="card">
+      <h2>{@title}</h2>
+      <Badge label="New" />
+      {content}
+    </article>
+  RSX
+end
+```
+
+`component` accepts the same prop signature as `props` (required symbols + keyword defaults) and returns a `PhlexComponent` subclass. Assign it to a constant and reference it as a tag in your RSX. Slots work too — call `.slots` on the returned class.
+
 ### Template-less Components
 
 Override `view_template` directly for Ruby-only components:

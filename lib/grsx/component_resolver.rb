@@ -52,7 +52,9 @@ module Grsx
     private
 
     def find(name)
-      self.class.try_constantize { ActiveSupport::Inflector.constantize("#{name.gsub(".", "::")}Component") }
+      class_name = name.gsub(".", "::")
+      self.class.try_constantize { ActiveSupport::Inflector.constantize("#{class_name}Component") } ||
+        self.class.try_constantize { ActiveSupport::Inflector.constantize(class_name) }
     end
 
     def matching_namespaces(template)

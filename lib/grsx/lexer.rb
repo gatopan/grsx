@@ -37,7 +37,7 @@ module Grsx
       single_quote: /'/,
       double_quoted_text_content: /[^"]+/,
       single_quoted_text_content: /[^']+/,
-      expression_internal_tag_prefixes: /(\s+(&&|\|\||\?|:|do|do\s*\|[^\|]+\||{|{\s*\|[^\|]+\|)\s+\z|\A\s*\z)/,
+      expression_internal_tag_prefixes: /(\s+(&&|\|\||\?|:|do|do\s*\|[^\|]+\||{|{\s*\|[^\|]+\||if|elsif|else|unless|when|then|in)\s+\z|\A\s*\z|\n\s*\z)/,
       declaration: /<![^>]*>/
     }.freeze
 
@@ -263,13 +263,18 @@ module Grsx
     end
 
     def potential_expression_inner_tag
-      if self.curr_expr =~ PATTERNS[:expression_internal_tag_prefixes]
+      if self.curr_expr =~ PATTERNS[:expression_internal_tag_prefixes] && parens_balanced?(curr_expr)
         tokens << [:EXPRESSION_BODY, curr_expr]
         self.curr_expr = String.new
         open_tag_def
       else
         self.curr_expr << scanner.matched
       end
+    end
+
+    # Guard: don't treat < as a tag inside unbalanced parentheses (e.g. %q())
+    def parens_balanced?(expr)
+      expr.count("(") == expr.count(")")
     end
 
     def open_tag_def

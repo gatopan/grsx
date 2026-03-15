@@ -398,5 +398,84 @@ RSpec.describe Grsx::PhlexComponent do
       expect(buf.string).to eq(expected)
     end
   end
+
+  describe ".component DSL" do
+    it "creates an inline component that renders RSX" do
+      klass = Grsx::PhlexComponent.component(:label) do
+        <<~RSX
+          <span>{@label}</span>
+        RSX
+      end
+
+      html = klass.new(label: "Hello").call
+      expect(html).to include("<span>")
+      expect(html).to include("Hello")
+    end
+
+    it "supports default props" do
+      klass = Grsx::PhlexComponent.component(:label, color: :blue) do
+        <<~RSX
+          <span class={@color}>{@label}</span>
+        RSX
+      end
+
+      html = klass.new(label: "Tag").call
+      expect(html).to include("blue")
+
+      html = klass.new(label: "Tag", color: :red).call
+      expect(html).to include("red")
+    end
+
+    it "creates a propless component when no args given" do
+      klass = Grsx::PhlexComponent.component do
+        <<~RSX
+          <hr />
+        RSX
+      end
+
+      html = klass.new.call
+      expect(html).to include("<hr>")
+    end
+
+    it "works as a nested constant rendered by a parent component" do
+      # Simulate the real usage pattern:
+      #   class CardComponent < Grsx::PhlexComponent
+      #     Badge = component(:label) { ... }
+      #     template <<~RSX
+      #       <div><Badge label="x" /></div>
+      #     RSX
+      #   end
+
+      badge = Grsx::PhlexComponent.component(:label) do
+        <<~RSX
+          <em>{@label}</em>
+        RSX
+      end
+      stub_const("BadgeComponent", badge)
+
+      parent = define_component('<div><Badge label="new" /></div>')
+      html = parent.new.call
+      expect(html).to include("<div>")
+      expect(html).to include("<em>")
+      expect(html).to include("new")
+    end
+
+    it "supports slots on inline components" do
+      klass = Grsx::PhlexComponent.component do
+        <<~RSX
+          <div>{slot(:header)}{content}</div>
+        RSX
+      end
+      klass.slots :header
+
+      header_comp = Class.new(Phlex::HTML) { def view_template; strong { plain("H") }; end }
+      instance = klass.new
+      instance.with_header { render header_comp.new }
+
+      html = instance.call { |c| c.plain("body") }
+      expect(html).to include("<strong>H</strong>")
+      expect(html).to include("body")
+    end
+  end
 end
 

@@ -95,12 +95,18 @@ module Grsx
         # shared across every instance of the component, causing subtle
         # cross-request state contamination. Fail loudly at class-definition
         # time with guidance on the idiomatic fix.
+        #
+        # Frozen defaults ([].freeze, {}.freeze) are safe — they raise on
+        # mutation, so sharing across instances cannot cause contamination.
         defaults.each do |key, val|
-          if val.is_a?(Array) || val.is_a?(Hash)
+          if (val.is_a?(Array) || val.is_a?(Hash)) && !val.frozen?
             raise ArgumentError,
               "#{name}.props :#{key} has a mutable default (#{val.inspect}). " \
-              "Use nil as the default and set the value in initialize instead:\n" \
-              "  props :#{key}\n" \
+              "Use a frozen default or nil:\n" \
+              "  props #{key}: [].freeze          # frozen, safe to share\n" \
+              "  # or\n" \
+              "  props :#{key}                    # required, caller provides\n" \
+              "  # or manual initialize:\n" \
               "  def initialize(#{key}: nil)\n" \
               "    @#{key} = #{key} || #{val.inspect}\n" \
               "  end"
@@ -147,6 +153,32 @@ module Grsx
       def template(source)
         compiled = Grsx.compile(Grsx::Template.new(source))
         define_view_template(compiled)
+      end
+
+      # Define an inline sub-component with props and an RSX template.
+      # Returns a PhlexComponent subclass — assign it to a constant for
+      # tag resolution:
+      #
+      #   class CardComponent < Grsx::PhlexComponent
+      #     Badge = component(:label, color: :blue) do
+      #       <<~RSX
+      #         <span class={@color}>{@label}</span>
+      #       RSX
+      #     end
+      #   end
+      #
+      # The block must return an RSX source string. Props use the same
+      # signature as the `props` macro (required symbols + keyword defaults).
+      def component(*required_names, **defaults, &block)
+        rsx_source = block.call
+
+        klass = Class.new(Grsx::PhlexComponent)
+        # Prevent the inherited hook from looking for a co-located .rsx file
+        klass.instance_variable_set(:@_rsx_template_path, nil)
+
+        klass.props(*required_names, **defaults) if required_names.any? || defaults.any?
+        klass.template(rsx_source)
+        klass
       end
     end
 
@@ -208,17 +240,41 @@ module Grsx
 
         super
         DESCENDANTS << subclass
-        subclass.load_rsx_template
+        subclass.defer_rsx_template
       end
 
-      # Locate, compile, and define view_template from the co-located .rsx file.
-      # Called once when the subclass is first defined.
+      # Mark this class as having a co-located .rsx template, but defer
+      # compilation until first render. This ensures that Grsx.configuration
+      # (set by Rails initializers) is fully available at compile time.
+      #
+      # A stub view_template is defined that compiles and redefines itself
+      # on first invocation — zero overhead after first render.
+      def defer_rsx_template
+        path = rsx_template_path
+        return unless path && File.exist?(path)
+
+        @_rsx_template_path = path
+        @_rsx_compiled = false
+
+        # Define a stub that compiles on first call, then replaces itself.
+        define_method(:view_template) do
+          # Compile once, thread-safely, then redefine for all future calls.
+          unless self.class.instance_variable_get(:@_rsx_compiled)
+            self.class.send(:compile_and_install_template!, path)
+          end
+          # Re-dispatch to the now-compiled method.
+          view_template
+        end
+      end
+
+      # Eagerly compile the co-located .rsx template. Use this when you
+      # know the resolver configuration is already available (e.g. in specs
+      # or after Rails initialization).
       def load_rsx_template
         path = rsx_template_path
         return unless path && File.exist?(path)
 
-        compiled = compile_template(path)
-        define_view_template(compiled)
+        compile_and_install_template!(path)
         @_rsx_template_path = path
       end
 
@@ -272,6 +328,19 @@ module Grsx
       end
 
       private
+
+      # Thread-safe compile-and-install. Compiles the .rsx template and
+      # redefines view_template with the compiled code. Idempotent —
+      # concurrent threads will wait on the monitor rather than double-compile.
+      def compile_and_install_template!(path)
+        CACHE_MONITOR.synchronize do
+          return if @_rsx_compiled
+
+          compiled = compile_template(path)
+          define_view_template(compiled)
+          @_rsx_compiled = true
+        end
+      end
 
       def compile_template(path)
         content = File.read(path)

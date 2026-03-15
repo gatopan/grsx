@@ -15,10 +15,22 @@ module Grsx
       # image_tag, url_for, etc. just work in every .rsx template without
       # per-component opt-in.
       #
+      # EXCLUDED: Rails form helpers whose method names collide with Phlex's
+      # HTML element methods: Select, TextArea, Label, Object. Including
+      # them overrides the HTML tag methods (e.g. `select` becomes the Rails
+      # form helper instead of emitting a <select> tag).
+      #
+      # The form helpers remain available via their _tag variants:
+      # select_tag, text_area_tag, label_tag, etc.
+      #
       # Some helpers (e.g. Routes) reference `Rails.application` at define
       # time, which raises NameError outside a Rails boot. We rescue and
       # skip — those helpers are unavailable in non-Rails contexts anyway.
+      excluded = %i[Select TextArea Label Object].to_set
+
       Phlex::Rails::Helpers.constants.each do |helper_name|
+        next if excluded.include?(helper_name)
+
         begin
           mod = Phlex::Rails::Helpers.const_get(helper_name)
           base.include mod if mod.is_a?(Module)
