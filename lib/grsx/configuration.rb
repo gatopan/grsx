@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Grsx
   class Configuration
     attr_writer :element_resolver

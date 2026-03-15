@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Grsx
   # Walks a compiled Phlex code string (or a Grsx AST) and collects every
   # @ivar name referenced in the template.

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Grsx
   class Template
     attr_reader :source, :identifier

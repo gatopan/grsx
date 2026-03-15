@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "phlex"
 require "phlex-rails"
 require "digest"

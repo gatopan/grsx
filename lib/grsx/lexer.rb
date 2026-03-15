@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Grsx
   class Lexer
     class SyntaxError < StandardError
@@ -52,9 +54,9 @@ module Grsx
       @scanner = StringScanner.new(template.source)
       @element_resolver = element_resolver
       @stack = [:default]
-      @curr_expr = ""
-      @curr_default_text = ""
-      @curr_quoted_text = ""
+      @curr_expr = String.new
+      @curr_default_text = String.new
+      @curr_quoted_text = String.new
       @tokens = []
     end
 
@@ -119,7 +121,7 @@ module Grsx
                 self.curr_default_text = curr_default_text.gsub(/^\p{Blank}*\z/, "")
               end
               tokens << [:TEXT, curr_default_text]
-              self.curr_default_text = ""
+              self.curr_default_text = String.new
               stack.pop
             end
           else
@@ -129,7 +131,7 @@ module Grsx
           if scanner.scan(PATTERNS[:close_expression])
             tokens << [:EXPRESSION_BODY, curr_expr]
             tokens << [:CLOSE_EXPRESSION]
-            self.curr_expr = ""
+            self.curr_expr = String.new
             stack.pop
           elsif scanner.scan(PATTERNS[:open_expression])
             expression_inner_bracket
@@ -247,7 +249,7 @@ module Grsx
             end
           elsif scanner.scan(PATTERNS[:double_quote])
             tokens << [:TEXT, curr_quoted_text]
-            self.curr_quoted_text = ""
+            self.curr_quoted_text = String.new
             stack.pop
           else
             raise SyntaxError, self
@@ -263,7 +265,7 @@ module Grsx
     def potential_expression_inner_tag
       if self.curr_expr =~ PATTERNS[:expression_internal_tag_prefixes]
         tokens << [:EXPRESSION_BODY, curr_expr]
-        self.curr_expr = ""
+        self.curr_expr = String.new
         open_tag_def
       else
         self.curr_expr << scanner.matched

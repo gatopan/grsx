@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Grsx
   # A Phlex::HTML subclass that serves as the execution context for compiled
   # .rsx templates in standalone (non-component) rendering.

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Grsx
   # Converts a Grsx AST into a Ruby string of Phlex DSL method calls.
   #

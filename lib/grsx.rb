@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require "grsx/version"
 require "active_support/inflector"
 

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 module Grsx
   module Rails
     class Engine < ::Rails::Engine
