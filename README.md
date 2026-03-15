@@ -23,8 +23,10 @@ Write server-rendered components using `.rsx` templates that compile directly to
 - [Components](#components)
   - [Props](#props)
   - [Named Slots](#named-slots)
+  - [Inline Templates](#inline-templates)
   - [Template-less Components](#template-less-components)
   - [Generator](#generator)
+- [RSX Views](#rsx-views)
 - [Component Resolution](#component-resolution)
   - [Auto-namespacing](#auto-namespacing)
 - [Standalone Usage (without Rails)](#standalone-usage-without-rails)
@@ -254,6 +256,22 @@ render page
 
 Each slot also has a predicate: `page.has_sidebar?`.
 
+### Inline Templates
+
+For simple components, skip the `.rsx` file and embed the template directly:
+
+```ruby
+class BadgeComponent < Grsx::PhlexComponent
+  props :label, color: :blue
+
+  template <<~RSX
+    <span class={@color}>{@label}</span>
+  RSX
+end
+```
+
+The RSX compiles at class-definition time — same performance as a co-located file. Use whichever style fits the component's complexity.
+
 ### Template-less Components
 
 Override `view_template` directly for Ruby-only components:
@@ -279,6 +297,39 @@ Produces:
 ```
 app/components/card_component.rb
 app/components/card_component.rsx
+```
+
+---
+
+## RSX Views
+
+GRSX registers `.rsx` as a first-class Rails view template type — like ERB, Haml, or Slim. Controller instance variables and helpers work automatically:
+
+```ruby
+# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+  def index
+    @posts = Post.all
+  end
+end
+```
+
+```jsx
+// app/views/posts/index.html.rsx
+<h1>Posts</h1>
+<ul>
+  {@posts.map { |post| <li>{post.title}</li> }}
+</ul>
+```
+
+Partials work too:
+
+```jsx
+// app/views/posts/_post.rsx
+<article>
+  <h2>{@post.title}</h2>
+  <p>{@post.body}</p>
+</article>
 ```
 
 ---
