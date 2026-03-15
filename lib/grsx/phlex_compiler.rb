@@ -20,7 +20,7 @@ module Grsx
   class PhlexCompiler
     HTML_VOID_ELEMENTS = %w(area base br col embed hr img input link meta source track wbr).to_set
 
-    attr_reader :root
+    private attr_reader :root
 
     def initialize(root)
       @root = root

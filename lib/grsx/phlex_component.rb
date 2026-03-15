@@ -3,6 +3,7 @@
 require "phlex"
 require "phlex-rails"
 require "digest"
+require "monitor"
 
 module Grsx
   # Base class for JSX-backed Phlex components.
@@ -172,7 +173,9 @@ module Grsx
       # Mtime cache: { path => Time } — tracks file modification times for
       # the dev-mode reloader without conflicting with the content-hash cache.
       MTIME_CACHE = {}
-      private_constant :TEMPLATE_CACHE, :MTIME_CACHE
+      # Monitor for thread-safe cache access (Puma runs multiple threads).
+      CACHE_MONITOR = Monitor.new
+      private_constant :TEMPLATE_CACHE, :MTIME_CACHE, :CACHE_MONITOR
 
       def inherited(subclass)
         # Capture the caller's file path BEFORE calling super so the stack
@@ -205,9 +208,11 @@ module Grsx
         return unless path
 
         mtime = File.mtime(path)
-        return if MTIME_CACHE[path] == mtime
+        CACHE_MONITOR.synchronize do
+          return if MTIME_CACHE[path] == mtime
+          MTIME_CACHE[path] = mtime
+        end
 
-        MTIME_CACHE[path] = mtime
         compiled = compile_template(path)
         define_view_template(compiled)
       end
@@ -260,7 +265,9 @@ module Grsx
         hash = Digest::SHA256.hexdigest(content)[0, 16]
         cache_key = "#{path}:#{hash}"
 
-        return TEMPLATE_CACHE[cache_key] if TEMPLATE_CACHE.key?(cache_key)
+        CACHE_MONITOR.synchronize do
+          return TEMPLATE_CACHE[cache_key] if TEMPLATE_CACHE.key?(cache_key)
+        end
 
         template = Grsx::Template.new(content, path)
 
@@ -273,7 +280,9 @@ module Grsx
           )
         end
 
-        TEMPLATE_CACHE[cache_key] = code
+        CACHE_MONITOR.synchronize do
+          TEMPLATE_CACHE[cache_key] = code
+        end
         code
       end
 
