@@ -11,8 +11,7 @@ module Grsx
       end
     end
 
-    attr_reader :tokens
-    attr_accessor :position
+    attr_reader :tokens, :position
 
     def initialize(tokens)
       @tokens = tokens
@@ -23,6 +22,10 @@ module Grsx
       validate_tokens!
       Nodes::Root.new(parse_tokens)
     end
+
+    private
+
+    attr_writer :position
 
     def parse_tokens
       results = []
@@ -160,7 +163,7 @@ module Grsx
       children
     end
 
-    private
+    # --- Token navigation ---
 
     def parse_declaration
       return unless token = take(:DECLARATION)
@@ -226,12 +229,15 @@ module Grsx
     end
 
     def validate_all_tags_close!
-      open_count  = tokens.count { |t| t[0] == :OPEN_TAG_DEF } +
-                    tokens.count { |t| t[0] == :OPEN_FRAGMENT }
-      close_count = tokens.count { |t| t[0] == :OPEN_TAG_END } +
-                    tokens.count { |t| t[0] == :CLOSE_FRAGMENT }
-      if open_count != close_count
-        raise(ParseError, "#{open_count - close_count} tags fail to close. All tags must close, either <NAME></NAME>, self-closing <NAME />, or <>...</>")
+      balance = 0
+      tokens.each do |t|
+        case t[0]
+        when :OPEN_TAG_DEF, :OPEN_FRAGMENT then balance += 1
+        when :OPEN_TAG_END, :CLOSE_FRAGMENT then balance -= 1
+        end
+      end
+      if balance != 0
+        raise(ParseError, "#{balance} tags fail to close. All tags must close, either <NAME></NAME>, self-closing <NAME />, or <>...</>")
       end
     end
   end

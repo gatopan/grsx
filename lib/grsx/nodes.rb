@@ -6,7 +6,7 @@ module Grsx
     end
 
     class AbstractElement < AbstractNode
-      attr_accessor :name, :members, :children
+      attr_reader :name, :members, :children
 
       def initialize(name, members, children)
         @name = name
@@ -16,7 +16,7 @@ module Grsx
     end
 
     class AbstractAttr < AbstractNode
-      attr_accessor :name, :value
+      attr_reader :name, :value
 
       def initialize(name, value)
         @name = name
@@ -43,7 +43,7 @@ module Grsx
     # --- Value nodes ---
 
     class Root < AbstractNode
-      attr_accessor :children
+      attr_reader :children
 
       def initialize(children)
         @children = children
@@ -53,7 +53,7 @@ module Grsx
     # A Fragment wraps children without emitting a DOM element.
     # Corresponds to the JSX <></> syntax.
     class Fragment < AbstractNode
-      attr_accessor :children
+      attr_reader :children
 
       def initialize(children)
         @children = children
@@ -61,7 +61,7 @@ module Grsx
     end
 
     class Text < AbstractNode
-      attr_accessor :content
+      attr_reader :content
 
       def initialize(content)
         @content = content
@@ -69,7 +69,7 @@ module Grsx
     end
 
     class Declaration < AbstractNode
-      attr_accessor :content
+      attr_reader :content
 
       def initialize(content)
         @content = content
@@ -77,7 +77,7 @@ module Grsx
     end
 
     class Expression < AbstractNode
-      attr_accessor :content
+      attr_reader :content
 
       def initialize(content)
         @content = content
@@ -85,7 +85,7 @@ module Grsx
     end
 
     class ExpressionGroup < AbstractNode
-      attr_accessor :members
+      attr_reader :members
 
       def initialize(members)
         @members = members

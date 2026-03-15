@@ -39,7 +39,12 @@ module Grsx
       declaration: /<![^>]*>/
     }.freeze
 
-    attr_reader :stack, :tokens, :scanner, :element_resolver, :template
+    # Public: SyntaxError reads template + scanner for error messages
+    attr_reader :scanner, :template
+
+    private
+
+    attr_reader :stack, :tokens, :element_resolver
     attr_accessor :curr_expr, :curr_default_text, :curr_quoted_text
 
     def initialize(template, element_resolver)
@@ -56,11 +61,11 @@ module Grsx
     # Current line number (1-indexed). Derived from the scanner's current
     # position — counts newlines consumed so far. Called only on errors
     # so O(n) is acceptable.
-    def current_line
+    public def current_line
       scanner.string[0, scanner.pos].count("\n") + 1
     end
 
-    def tokenize
+    public def tokenize
       until scanner.eos?
         case stack.last
         when :default
