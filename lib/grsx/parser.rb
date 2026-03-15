@@ -165,8 +165,6 @@ module Grsx
       children
     end
 
-    # --- Token navigation ---
-
     def parse_declaration
       return unless token = take(:DECLARATION)
       Nodes::Declaration.new(token[1])

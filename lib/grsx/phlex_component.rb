@@ -4,6 +4,7 @@ require "phlex"
 require "phlex-rails"
 require "digest"
 require "monitor"
+require "set"
 
 module Grsx
   # Base class for JSX-backed Phlex components.
@@ -175,7 +176,10 @@ module Grsx
       MTIME_CACHE = {}
       # Monitor for thread-safe cache access (Puma runs multiple threads).
       CACHE_MONITOR = Monitor.new
-      private_constant :TEMPLATE_CACHE, :MTIME_CACHE, :CACHE_MONITOR
+      # Explicit descendant tracking — avoids ObjectSpace.each_object heap
+      # scan on every dev request. Populated by the inherited hook below.
+      DESCENDANTS = Set.new
+      private_constant :TEMPLATE_CACHE, :MTIME_CACHE, :CACHE_MONITOR, :DESCENDANTS
 
       def inherited(subclass)
         # Capture the caller's file path BEFORE calling super so the stack
@@ -187,6 +191,7 @@ module Grsx
         subclass.instance_variable_set(:@_rsx_source_rb, defining_file)
 
         super
+        DESCENDANTS << subclass
         subclass.load_rsx_template
       end
 
@@ -231,8 +236,9 @@ module Grsx
       end
 
       # All known PhlexComponent subclasses, for the dev-mode reloader.
+      # Uses explicit tracking via inherited hook instead of ObjectSpace scan.
       def all_descendants
-        ObjectSpace.each_object(Class).select { |c| c < self }
+        DESCENDANTS.to_a
       end
 
       # Returns the Phlex DSL Ruby code that was compiled from the .rsx template.

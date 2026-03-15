@@ -7,7 +7,7 @@ module Grsx
 
       def initialize(lexer)
         @line = lexer.current_line
-        # Template#identifier is the file path; Anonymous is an empty String.
+        # Template#identifier is the file path (empty string for anonymous templates).
         ident = lexer.template.identifier
         @path = ident.to_s.empty? ? nil : ident.to_s
 
