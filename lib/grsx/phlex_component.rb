@@ -132,6 +132,22 @@ module Grsx
 
       # Returns the declared props, or nil if none were declared.
       attr_reader :_declared_props
+
+      # Compile an inline RSX template string at class-definition time.
+      # Eliminates the need for a separate .rsx file for simple components.
+      #
+      #   class BadgeComponent < Grsx::PhlexComponent
+      #     props :label, color: :blue
+      #
+      #     template <<~RSX
+      #       <span class={@color}>{@label}</span>
+      #     RSX
+      #   end
+      #
+      def template(source)
+        compiled = Grsx.compile(Grsx::Template.new(source))
+        define_view_template(compiled)
+      end
     end
 
     # Render a named slot. Falls back silently if no slot content was provided.
