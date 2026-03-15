@@ -88,7 +88,6 @@ GEM
       rake
       thor (>= 0.14.0)
     base64 (0.3.0)
-    benchmark (0.5.0)
     bigdecimal (4.0.1)
     builder (3.3.0)
     byebug (13.0.0)
@@ -130,7 +129,6 @@ GEM
     minitest (6.0.2)
       drb (~> 2.0)
       prism (~> 1.5)
-    mutex_m (0.3.0)
     net-imap (0.6.3)
       date
       net-protocol
@@ -226,14 +224,6 @@ GEM
     rspec-mocks (3.13.8)
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.13.0)
-    rspec-rails (6.1.5)
-      actionpack (>= 6.1)
-      activesupport (>= 6.1)
-      railties (>= 6.1)
-      rspec-core (~> 3.13)
-      rspec-expectations (~> 3.13)
-      rspec-mocks (~> 3.13)
-      rspec-support (~> 3.13)
     rspec-support (3.13.7)
     securerandom (0.4.1)
     stringio (3.2.0)
@@ -255,20 +245,13 @@ PLATFORMS
 
 DEPENDENCIES
   appraisal (~> 2.2)
-  base64
-  benchmark
-  bigdecimal
-  drb
   grsx!
-  logger
-  mutex_m
   phlex (~> 2.4)
   phlex-rails (~> 2.4)
   pry-byebug
   rails (>= 7.1)
   rake
   rspec (~> 3.12)
-  rspec-rails (~> 6.0, >= 6.0.3)
 
 BUNDLED WITH
    2.5.6

@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 require_relative 'lib/grsx/version'
 
 Gem::Specification.new do |spec|
@@ -31,13 +33,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "appraisal", "~> 2.2"
   spec.add_development_dependency "rails", ">= 7.1"
   spec.add_development_dependency "rspec", "~> 3.12"
-  spec.add_development_dependency "rspec-rails", "~> 6.0", ">= 6.0.3"
   spec.add_development_dependency "rake"
   spec.add_development_dependency "pry-byebug"
-  spec.add_development_dependency "mutex_m"
-  spec.add_development_dependency "logger"
-  spec.add_development_dependency "bigdecimal"
-  spec.add_development_dependency "drb"
-  spec.add_development_dependency "benchmark"
-  spec.add_development_dependency "base64"
 end
