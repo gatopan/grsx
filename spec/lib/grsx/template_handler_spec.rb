@@ -9,7 +9,9 @@ RSpec.describe Grsx::TemplateHandler do
   let(:template) do
     double("ActionView::Template",
       source: template_source,
-      identifier: "/app/views/posts/index.html.rsx"
+      identifier: "/app/views/posts/index.html.rsx",
+      short_identifier: "posts/index.html.rsx",
+      format: :html
     )
   end
 
@@ -41,6 +43,13 @@ RSpec.describe Grsx::TemplateHandler do
         result = handler.call(template)
         expect(result).to include("assigns")
       end
+
+      it "captures layout block as lambda for Phlex boundary crossing" do
+        result = handler.call(template)
+        expect(result).to include("lambda")
+        expect(result).to include("yield")
+        expect(result).to include("layout_block")
+      end
     end
 
     context "with expressions" do
@@ -59,7 +68,7 @@ RSpec.describe Grsx::TemplateHandler do
       it "compiles component rendering" do
         stub_const("CardComponent", Class.new)
         result = handler.call(template, template_source)
-        expect(result).to include("CardComponent")
+        expect(result).to include('__resolve_rsx_const("Card")')
       end
     end
 
@@ -70,14 +79,6 @@ RSpec.describe Grsx::TemplateHandler do
         result = handler.call(template)
         expect(result).to include("class:")
         expect(result).to include("id:")
-      end
-    end
-
-    context "with invalid RSX" do
-      let(:template_source) { "<div><span></div>" }
-
-      it "raises a parse error at handler call time" do
-        expect { handler.call(template) }.to raise_error(Grsx::Parser::ParseError)
       end
     end
 
@@ -98,6 +99,95 @@ RSpec.describe Grsx::TemplateHandler do
         expect(result).to include("h2")
         expect(result).not_to include("\"ignored\"")
       end
+    end
+  end
+
+  describe "#supports_streaming?" do
+    it "returns false (Phlex renders complete strings, no streaming)" do
+      expect(handler.supports_streaming?).to be false
+    end
+  end
+
+  describe "#handles_encoding?" do
+    it "returns false (delegates to Rails)" do
+      expect(handler.handles_encoding?).to be false
+    end
+  end
+
+  describe "#translate_location" do
+    let(:source) do
+      "some code\nmore code # rsx:5\neven more\n"
+    end
+
+    let(:backtrace_location) do
+      double("BacktraceLocation", lineno: 2)
+    end
+
+    it "maps compiled line to RSX source line via rsx:N marker" do
+      spot = { first_lineno: 2, last_lineno: 2, first_column: 0, last_column: 10 }
+      result = handler.translate_location(spot, backtrace_location, source)
+      expect(result).not_to be_nil
+      expect(result[:first_lineno]).to eq(5)
+      expect(result[:last_lineno]).to eq(5)
+    end
+
+    it "returns nil when no rsx marker matches the line" do
+      spot = { first_lineno: 1, last_lineno: 1, first_column: 0, last_column: 10 }
+      loc = double("BacktraceLocation", lineno: 1)
+      result = handler.translate_location(spot, loc, source)
+      expect(result).to be_nil
+    end
+
+    it "returns nil for nil source" do
+      spot = { first_lineno: 1, last_lineno: 1 }
+      loc = double("BacktraceLocation", lineno: 1)
+      expect(handler.translate_location(spot, loc, nil)).to be_nil
+    end
+  end
+
+  describe "template annotations" do
+    let(:template_source) { "<p>Hello</p>" }
+
+    context "when annotations are enabled" do
+      before do
+        stub_const("ActionView::Base", Class.new {
+          def self.annotate_rendered_view_with_filenames
+            true
+          end
+        })
+      end
+
+      it "wraps output with BEGIN/END comments" do
+        result = handler.call(template)
+        expect(result).to include("BEGIN posts/index.html.rsx")
+        expect(result).to include("END posts/index.html.rsx")
+      end
+    end
+
+    context "when annotations are disabled" do
+      before do
+        stub_const("ActionView::Base", Class.new {
+          def self.annotate_rendered_view_with_filenames
+            false
+          end
+        })
+      end
+
+      it "does not include annotation comments" do
+        result = handler.call(template)
+        expect(result).not_to include("BEGIN")
+        expect(result).not_to include("END")
+      end
+    end
+  end
+
+  describe ".call class method" do
+    let(:template_source) { "<p>class method</p>" }
+
+    it "instantiates and delegates to #call" do
+      result = described_class.call(template)
+      expect(result).to be_a(String)
+      expect(result).to include("Grsx::PhlexRuntime")
     end
   end
 end

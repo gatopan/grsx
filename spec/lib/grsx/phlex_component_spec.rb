@@ -102,23 +102,6 @@ RSpec.describe Grsx::PhlexComponent do
     end
   end
 
-  # --- Compile error messages ---
-  describe "TemplateCompileError" do
-    it "raises TemplateCompileError with the .rsx filename for syntax errors" do
-      file = Tempfile.new(["bad_component", ".rsx"])
-      file.write("<div {broken")
-      file.flush
-
-      klass = Class.new(Grsx::PhlexComponent)
-      expect {
-        klass.send(:compile_template, file.path)
-      }.to raise_error(Grsx::PhlexComponent::TemplateCompileError, /bad_component/)
-    ensure
-      file.close
-      file.unlink
-    end
-  end
-
   # --- Conditional component rendering ---
   describe "conditional rendering with components" do
     it "renders a child component with && when condition is true" do

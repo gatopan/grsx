@@ -4,18 +4,8 @@ require "set"
 
 module Grsx
   class ComponentResolver
-    # Standard HTML5 elements only. SVG elements are not listed — they pass
-    # through as HTML tags via the fallback path (Phlex renders them as raw
-    # tag names, which is correct for SVG).
-    KNOWN_HTML_ELEMENTS = %w(
-      a abbr address area article aside audio b base bdi bdo blockquote body br button canvas
-      caption cite code col colgroup data datalist dd del details dfn dialog div dl dt em embed
-      fieldset figcaption figure footer form h1 h2 h3 h4 h5 h6 head header hgroup hr html i
-      iframe img input ins kbd label legend li link main map mark menu meta meter nav noscript
-      object ol optgroup option output p param picture pre progress q rp rt ruby s samp script
-      search section select slot small source span strong style sub summary sup table tbody td
-      template textarea tfoot th thead time title tr track u ul var video wbr
-    ).to_set.freeze
+    # Standard HTML5 + SVG elements — delegates to Grsx::Elements.
+    KNOWN_HTML_ELEMENTS = Elements::KNOWN
 
     def self.try_constantize
       yield

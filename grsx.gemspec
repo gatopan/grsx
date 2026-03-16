@@ -8,7 +8,7 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Gatopan"]
   spec.email         = ["dev@gatopan.com"]
 
-  spec.summary       = "GRSX — JSX-flavored templates for Ruby, powered by Phlex"
+  spec.summary       = "GRSX — RSX templates for Ruby, powered by Phlex"
   spec.homepage      = "https://github.com/gatopan/grsx"
   spec.license       = "MIT"
   spec.required_ruby_version = Gem::Requirement.new(">= 3.1.0")

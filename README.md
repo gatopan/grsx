@@ -1,10 +1,10 @@
 # GRSX
 
-**JSX-flavored templates for Ruby, powered by [Phlex](https://phlex.fun).**
+**RSX templates for Ruby, powered by [Phlex](https://phlex.fun).**
 
 [![CI](https://github.com/gatopan/grsx/actions/workflows/build.yml/badge.svg?branch=master)](https://github.com/gatopan/grsx/actions?query=branch%3Amaster)
 
-Write server-rendered components using `.rsx` templates that compile directly to Phlex DSL at class-definition time — zero eval at render time.
+Write your Rails views and components using `.rsx` — Ruby with `<Tag>` syntax that compiles to Phlex DSL. Zero eval at render time.
 
 ```jsx
 <body>
@@ -18,48 +18,98 @@ Write server-rendered components using `.rsx` templates that compile directly to
 ## Table of Contents
 
 - [How It Works](#how-it-works)
+- [The Grammar](#the-grammar)
 - [Getting Started](#getting-started)
-- [Template Syntax](#template-syntax)
+- [RSX Syntax](#rsx-syntax)
+- [Views](#views)
 - [Components](#components)
+  - [Single-file Components](#single-file-components)
+  - [Co-located Pair](#co-located-pair)
   - [Props](#props)
   - [Named Slots](#named-slots)
-  - [Inline Templates](#inline-templates)
-  - [Template-less Components](#template-less-components)
+  - [Inline Components](#inline-components)
   - [Generator](#generator)
-- [RSX Views](#rsx-views)
 - [Component Resolution](#component-resolution)
   - [Auto-namespacing](#auto-namespacing)
-- [Standalone Usage (without Rails)](#standalone-usage-without-rails)
+- [Standalone Usage](#standalone-usage-without-rails)
 - [Development](#development)
 
 ---
 
 ## How It Works
 
-GRSX has a three-stage compilation pipeline:
+`.rsx` files are **Ruby-first** — standard Ruby with `<Tag>` as the only syntactic extension.
+
+The preprocessor transforms `<Tag>` patterns into Phlex DSL calls:
 
 ```
-.rsx template → Lexer → Parser → PhlexCompiler → Ruby code (Phlex DSL)
+.rsx source (Ruby + <Tag>) → Parser → AST → Codegen → Ruby code (Phlex DSL)
 ```
 
-The compiled code is `class_eval`'d into `view_template` at class-definition time, not at render time. At render time, Phlex executes the method directly — no parsing, no eval, no overhead.
+Compilation happens once at class-definition time. At render time Phlex executes the method directly — no parsing, no eval, no overhead.
 
-```ruby
-# card_component.rsx
-# <article class="card"><h2>{@title}</h2>{content}</article>
+In development, `.rsx` files are hot-reloaded automatically on each request.
 
-# compiles to:
-def view_template
-  article(class: "card") do
-    h2 do
-      __rsx_expr_out(@title)
-    end
-    yield
-  end
-end
+---
+
+## The Grammar
+
+GRSX uses a **deterministic LL(1) recursive-descent parser**. Inside tag children, a single character of lookahead decides every production — no heuristics, no tokenizer, no guessing:
+
+| First char | Production | Example |
+|---|---|---|
+| `<` | Tag or close tag | `<div>`, `</div>`, `<Card />` |
+| `{` | Expression or statement | `{@name}`, `{if cond}`, `{end}` |
+| anything else | Text content | `Hello world` |
+
+**Rule: Ruby code in children must be wrapped in `{}`.**
+
+This is what makes the grammar deterministic — the parser never needs to guess whether content is prose or Ruby. Bare text is text, always.
+
+### Expressions vs Statements
+
+Inside `{}`, the parser distinguishes two forms:
+
+**Expressions** — interpolated into the output:
+```jsx
+<p>Hello {@user.name}</p>
+<span>{Time.now.strftime("%H:%M")}</span>
 ```
 
-In development, the `PhlexReloader` middleware watches `.rsx` files for changes and recompiles automatically on each request.
+**Statements** — control flow keywords emit as bare Ruby:
+```jsx
+<div>
+  {if @logged_in}
+    <nav>Dashboard</nav>
+  {else}
+    <a href="/login">Sign in</a>
+  {end}
+</div>
+```
+
+Keywords recognized as statements: `if`, `elsif`, `else`, `unless`, `case`, `when`, `begin`, `rescue`, `ensure`, `end`, `for`, `while`, `until`.
+
+### Block Openers
+
+For iterators and block methods, use the `{expr do |args|}...{end}` pattern:
+
+```jsx
+<ul>
+  {@items.each do |item|}
+    <li>{item.name}</li>
+  {end}
+</ul>
+```
+
+### Inline Blocks
+
+For helpers that take a block with RSX content (like `link_to`), enclose the entire call in one `{}`:
+
+```jsx
+{link_to "/" do
+  <span>Click me</span>
+end}
+```
 
 ---
 
@@ -73,46 +123,49 @@ gem "grsx"
 
 Requires **Ruby ≥ 3.1** and **Rails ≥ 7.1**.
 
-Create a component:
+Replace any ERB view with `.rsx`:
+
+```jsx
+// app/views/posts/index.html.rsx
+<h1>Posts</h1>
+<ul>
+  {@posts.each do |post|}
+    <li>{post.title}</li>
+  {end}
+</ul>
+```
+
+That's it. Same controller, same routes, same layout — just a better template syntax.
+
+When you find yourself reusing markup, extract a component:
 
 ```ruby
-# app/components/greeting_component.rb
-class GreetingComponent < Grsx::PhlexComponent
-  def initialize(name:)
-    @name = name
+// app/components/card_component.rsx
+class CardComponent < Grsx::PhlexComponent
+  props :title
+
+  def view_template
+    <article class="card">
+      <h2>{@title}</h2>
+      {content}
+    </article>
   end
 end
 ```
 
 ```jsx
-// app/components/greeting_component.rsx
-<div>
-  <h1>Hello {@name}</h1>
-  {content}
-</div>
-```
-
-Render from a controller:
-
-```ruby
-class WelcomeController < ApplicationController
-  def index
-    render GreetingComponent.new(name: "World")
-  end
-end
-```
-
-Or from another `.rsx` template:
-
-```jsx
-<Greeting name="World">
-  <p>Welcome to GRSX.</p>
-</Greeting>
+// app/views/posts/index.html.rsx
+<h1>Posts</h1>
+{@posts.each do |post|}
+  <Card title={post.title}>
+    <p>{post.body}</p>
+  </Card>
+{end}
 ```
 
 ---
 
-## Template Syntax
+## RSX Syntax
 
 ### Expressions
 
@@ -132,10 +185,22 @@ Splat a hash into attributes:
 
 ### Conditionals
 
+Wrap control flow in `{}`:
+
 ```jsx
 <div>
-  {logged_in? && <nav>Dashboard</nav>}
-  {admin? ? <AdminPanel /> : <UserPanel />}
+  {if logged_in?}
+    <nav>Dashboard</nav>
+  {else}
+    <a href="/login">Sign in</a>
+  {end}
+
+  {case @role}
+  {when :admin}
+    <AdminPanel />
+  {when :user}
+    <UserPanel />
+  {end}
 </div>
 ```
 
@@ -143,7 +208,9 @@ Splat a hash into attributes:
 
 ```jsx
 <ul>
-  {@items.map { |item| <li>{item.name}</li> }}
+  {@items.each do |item|}
+    <li>{item.name}</li>
+  {end}
 </ul>
 ```
 
@@ -168,52 +235,134 @@ Render multiple elements without a wrapper:
 
 ### Comments
 
-Lines starting with `#` are stripped from the output:
+Both Ruby and HTML comments are stripped:
 
 ```jsx
-# This won't appear in the HTML
+# Ruby-style comment
+<!-- HTML comment -->
 <div>Visible</div>
 ```
 
-### Declarations
+### SVG
 
-Pass-through for `<!DOCTYPE>` and similar:
+SVG elements are fully supported:
 
 ```jsx
-<!DOCTYPE html>
-<html>
-  <body>{content}</body>
-</html>
+<svg width="24" height="24" viewBox="0 0 24 24">
+  <path d="M12 2L2 7" stroke="currentColor" />
+  <circle cx="12" cy="12" r="10" fill="none" />
+</svg>
 ```
+
+---
+
+## Views
+
+GRSX registers `.rsx` as a first-class Rails template type — a drop-in replacement for ERB. Controller instance variables and helpers work automatically:
+
+```ruby
+# app/controllers/posts_controller.rb
+class PostsController < ApplicationController
+  def index
+    @posts = Post.all
+  end
+end
+```
+
+```jsx
+// app/views/posts/index.html.rsx
+<h1>Posts</h1>
+<ul>
+  {@posts.each do |post|}
+    <li>{link_to post.title, post_path(post)}</li>
+  {end}
+</ul>
+```
+
+Partials, layouts, and all other view conventions work the same way — just use `.rsx` instead of `.erb`.
 
 ---
 
 ## Components
 
-All components inherit from `Grsx::PhlexComponent` (which extends `Phlex::HTML`).
+Components extend `Grsx::PhlexComponent` (which extends `Phlex::HTML`).
 
-Place the `.rb` file and `.rsx` template side by side with matching names — GRSX automatically discovers and compiles the template.
+### Single-file Components
+
+Define everything in one `.rsx` file — props, logic, and markup together:
+
+```ruby
+// app/components/card_component.rsx
+class CardComponent < Grsx::PhlexComponent
+  props :title, :body, size: :md
+
+  def css_class
+    "card card--#{@size}"
+  end
+
+  def view_template
+    <article class={css_class}>
+      <h2>{@title}</h2>
+      <p>{@body}</p>
+      {content}
+    </article>
+  end
+end
+```
+
+GRSX auto-discovers single-file `.rsx` components — no separate `.rb` file needed.
+
+### Co-located Pair
+
+For complex components, split logic and markup into two files:
 
 ```
 app/components/
-  card_component.rb
-  card_component.rsx
+  dashboard_component.rb    # Ruby logic, props, helpers
+  dashboard_component.rsx   # Template only
+```
+
+```ruby
+# dashboard_component.rb
+class DashboardComponent < Grsx::PhlexComponent
+  props :user
+  slots :sidebar
+
+  def stats
+    @user.recent_activity.group_by(&:type)
+  end
+end
+```
+
+```jsx
+// dashboard_component.rsx
+<div class="dashboard">
+  <aside>{slot(:sidebar)}</aside>
+  <main>
+    {@stats.each do |type, items|}
+      <section>
+        <h2>{type.titleize}</h2>
+        <ul>
+          {items.each do |item|}
+            <li>{item.name}</li>
+          {end}
+        </ul>
+      </section>
+    {end}
+  </main>
+</div>
 ```
 
 ### Props
 
-For simple prop-to-ivar mapping, use the `props` macro:
+The `props` macro generates `initialize` with keyword arguments, instance variables, and `attr_reader` accessors:
 
 ```ruby
 class CardComponent < Grsx::PhlexComponent
   props :title, :body, size: :md, disabled: false
 end
-```
 
-This generates an `initialize` with keyword arguments, instance variables, and `attr_reader` accessors:
-
-```ruby
-# Equivalent to writing:
+# Equivalent to:
 # def initialize(title:, body:, size: :md, disabled: false)
 #   @title = title; @body = body; @size = size; @disabled = disabled
 # end
@@ -221,8 +370,6 @@ This generates an `initialize` with keyword arguments, instance variables, and `
 
 > [!NOTE]
 > Mutable defaults (`[]`, `{}`) are rejected at class-definition time with a helpful error message. Use `nil` and set the value in a manual `initialize` instead.
-
-For complex initialization logic, override `initialize` directly instead of using `props`.
 
 ### Named Slots
 
@@ -233,8 +380,6 @@ class PageComponent < Grsx::PhlexComponent
   slots :sidebar, :footer
 end
 ```
-
-Use in the template:
 
 ```jsx
 // page_component.rsx
@@ -254,27 +399,9 @@ page.with_footer { plain("© 2026") }
 render page
 ```
 
-Each slot also has a predicate: `page.has_sidebar?`.
-
-### Inline Templates
-
-For simple components, skip the `.rsx` file and embed the template directly:
-
-```ruby
-class BadgeComponent < Grsx::PhlexComponent
-  props :label, color: :blue
-
-  template <<~RSX
-    <span class={@color}>{@label}</span>
-  RSX
-end
-```
-
-The RSX compiles at class-definition time — same performance as a co-located file. Use whichever style fits the component's complexity.
-
 ### Inline Components
 
-Define sub-components directly inside a parent class — no separate file, no global namespace pollution:
+Define sub-components directly inside a parent class:
 
 ```ruby
 class CardComponent < Grsx::PhlexComponent
@@ -296,81 +423,34 @@ class CardComponent < Grsx::PhlexComponent
 end
 ```
 
-`component` accepts the same prop signature as `props` (required symbols + keyword defaults) and returns a `PhlexComponent` subclass. Assign it to a constant and reference it as a tag in your RSX. Slots work too — call `.slots` on the returned class.
-
-### Template-less Components
-
-Override `view_template` directly for Ruby-only components:
-
-```ruby
-class BadgeComponent < Grsx::PhlexComponent
-  props :label
-
-  def view_template
-    span(class: "badge") { plain(@label) }
-  end
-end
-```
-
 ### Generator
 
 ```bash
 rails generate grsx:phlex_component Card title body --slots header footer
 ```
 
-Produces:
-
-```
-app/components/card_component.rb
-app/components/card_component.rsx
-```
-
----
-
-## RSX Views
-
-GRSX registers `.rsx` as a first-class Rails view template type — like ERB, Haml, or Slim. Controller instance variables and helpers work automatically:
-
-```ruby
-# app/controllers/posts_controller.rb
-class PostsController < ApplicationController
-  def index
-    @posts = Post.all
-  end
-end
-```
-
-```jsx
-// app/views/posts/index.html.rsx
-<h1>Posts</h1>
-<ul>
-  {@posts.map { |post| <li>{post.title}</li> }}
-</ul>
-```
-
-Partials work too:
-
-```jsx
-// app/views/posts/_post.rsx
-<article>
-  <h2>{@post.title}</h2>
-  <p>{@post.body}</p>
-</article>
-```
-
 ---
 
 ## Component Resolution
 
-GRSX resolves component tags by appending `Component` to the tag name:
+GRSX resolves component tags at runtime using `safe_constantize`:
 
-| RSX Tag | Ruby Class |
-|---------|-----------|
-| `<Card />` | `CardComponent` |
-| `<Admin.Button />` | `Admin::ButtonComponent` |
-| `<UI.Forms.Input />` | `UI::Forms::InputComponent` |
+| RSX Tag | Searches |
+|---------|----------|
+| `<Card />` | `CardComponent`, then `Card` |
+| `<Admin.Button />` | `Admin::ButtonComponent`, then `Admin::Button` |
+| `<UI.Forms.Input />` | `UI::Forms::InputComponent`, then `UI::Forms::Input` |
 
-HTML elements are detected by name and rendered as plain tags — no class lookup.
+HTML elements (`div`, `span`, `p`, `svg`, etc.) are detected by name and rendered as plain tags — no class lookup.
+
+Unknown lowercase tags raise a `SyntaxError` with a "did you mean?" suggestion:
+
+```
+Unknown element <dvi>. Did you mean <div>?
+(components must start with uppercase, e.g. <Dvi>) (line 3)
+  2 |   <p>ok</p>
+> 3 |   <dvi>bad</dvi>
+```
 
 ### Auto-namespacing
 
@@ -386,32 +466,16 @@ Grsx.configure do |config|
 end
 ```
 
-Now `<Button />` in any `.rsx` file under `app/views/admin/` will resolve to `Admin::ButtonComponent` first, falling back to `ButtonComponent`.
-
-### Custom Resolver
-
-Replace the default resolver entirely:
-
-```ruby
-Grsx.configure do |config|
-  config.element_resolver = MyResolver.new
-end
-```
-
-Where `MyResolver` implements:
-
-- `component?(name, template) → Boolean`
-- `component_class(name, template) → Class`
+Now `<Button />` in any `.rsx` file under `app/views/admin/` resolves to `Admin::ButtonComponent` first, falling back to `ButtonComponent`.
 
 ---
 
 ## Standalone Usage (without Rails)
 
-GRSX compiles `.rsx` templates to Phlex DSL code. The compilation API works without Rails:
+GRSX compiles `.rsx` source to Phlex DSL code. The compilation API works without Rails:
 
 ```ruby
-template = Grsx::Template.new('<p class="greeting">{@message}</p>')
-code = Grsx.compile(template)
+code = Grsx.compile('<p class="greeting">{@message}</p>')
 # => "p(class: \"greeting\") do\n__rsx_expr_out(@message)\nend"
 ```
 

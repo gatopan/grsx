@@ -1,11 +1,13 @@
 # frozen_string_literal: true
 
 require "spec_helper"
+require "ostruct"
 
 RSpec.describe Grsx::ComponentResolver do
   subject(:resolver) { described_class.new }
 
-  let(:template) { Grsx::Template.new("<div/>", "/app/views/home/index.rsx") }
+  # Simple stand-in for template identity (just needs #identifier)
+  let(:template) { OpenStruct.new(identifier: "/app/views/home/index.rsx") }
 
   describe "#component?" do
     it "returns false for known HTML elements" do
@@ -60,7 +62,7 @@ RSpec.describe Grsx::ComponentResolver do
         "/app/views/admin" => %w[Admin]
       }
 
-      admin_template = Grsx::Template.new("<div/>", "/app/views/admin/dashboard.rsx")
+      admin_template = OpenStruct.new(identifier: "/app/views/admin/dashboard.rsx")
       expect(resolver.component_class("Button", admin_template)).to eq(klass)
     end
 
@@ -71,7 +73,7 @@ RSpec.describe Grsx::ComponentResolver do
         "/app/views/admin" => %w[Admin]
       }
 
-      public_template = Grsx::Template.new("<div/>", "/app/views/public/home.rsx")
+      public_template = OpenStruct.new(identifier: "/app/views/public/home.rsx")
       expect(resolver.component_class("Button", public_template)).to be_nil
     end
   end

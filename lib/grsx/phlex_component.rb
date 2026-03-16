@@ -7,19 +7,17 @@ require "monitor"
 require "set"
 
 module Grsx
-  # Base class for JSX-backed Phlex components.
+  # Base class for RSX-powered Phlex components.
   #
-  # Define your props in initialize, write your template in a co-located .rsx
-  # file. Grsx compiles the .rsx into a real view_template method — no eval
-  # at render time.
+  # Declare props with the `props` macro, write your template in a
+  # co-located .rsx file. GRSX compiles the .rsx into a real
+  # view_template method — no eval at render time.
   #
   # ## Basic usage
   #
   #   # app/components/card_component.rb
   #   class CardComponent < Grsx::PhlexComponent
-  #     def initialize(title:)
-  #       @title = title
-  #     end
+  #     props :title
   #   end
   #
   #   # app/components/card_component.rsx
@@ -40,11 +38,6 @@ module Grsx
   #     <main>{content}</main>
   #     <footer>{slot(:footer)}</footer>
   #   </article>
-  #
-  #   # Usage
-  #   card = CardComponent.new
-  #   card.with_slot(:header) { render LogoComponent.new }
-  #   render card
   #
   class PhlexComponent < Phlex::HTML
     include RsxDSL
@@ -139,7 +132,7 @@ module Grsx
       # Returns the declared props, or nil if none were declared.
       attr_reader :_declared_props
 
-      # Compile an inline RSX template string at class-definition time.
+      # Compile an inline template string at class-definition time.
       # Eliminates the need for a separate .rsx file for simple components.
       #
       #   class BadgeComponent < Grsx::PhlexComponent
@@ -151,7 +144,8 @@ module Grsx
       #   end
       #
       def template(source)
-        compiled = Grsx.compile(Grsx::Template.new(source))
+        compiled = Grsx.compile(source)
+        @_compiled_template_code = compiled
         define_view_template(compiled)
       end
 
@@ -190,29 +184,8 @@ module Grsx
       nil
     end
 
-    # --- Default children slot ---
-
-    # The compiler emits `yield` for {content} expressions, not `content()`.
-    # This method exists as a semantic fallback if user code calls `content`
-    # directly in Ruby (undocumented but harmless).
-    def content
-      yield
-    end
-
     # --- Expression output, safe(), render override ---
     # See RsxDSL module for __rsx_expr_out, safe, and render nil-return.
-
-    # Raised when a .rsx template fails to compile (syntax or parse error).
-    # Provides the source file path and the underlying error message so
-    # developers see their .rsx line rather than a grsx internal backtrace.
-    class TemplateCompileError < StandardError
-      attr_reader :template_path
-
-      def initialize(message, template_path:)
-        @template_path = template_path
-        super(message)
-      end
-    end
 
     # --- Template loading ---
 
@@ -249,7 +222,16 @@ module Grsx
       #
       # A stub view_template is defined that compiles and redefines itself
       # on first invocation — zero overhead after first render.
+      #
+      # In single-file mode (source IS .rsx), view_template was already
+      # compiled by the preprocessor during require — nothing to defer.
       def defer_rsx_template
+        # Single-file .rsx: the preprocessor already compiled <Tag> syntax
+        # into the view_template method body when the file was loaded.
+        # No sidecar to find, no deferred compilation needed.
+        source = @_rsx_source_rb
+        return if source&.end_with?(".rsx")
+
         path = rsx_template_path
         return unless path && File.exist?(path)
 
@@ -294,12 +276,18 @@ module Grsx
         define_view_template(compiled)
       end
 
-      # Return the path to the .rsx file for this component (nil if not found).
+      # Return the path to the co-located .rsx template file (nil if not found).
+      #
+      # In single-file mode (source IS .rsx), returns nil — the template
+      # is already compiled into the class, no sidecar to load.
       def rsx_template_path
         return @_rsx_template_path if defined?(@_rsx_template_path)
 
         source = @_rsx_source_rb
         return nil unless source
+
+        # Single-file .rsx: no sidecar needed
+        return nil if source.end_with?(".rsx")
 
         base = File.basename(source, ".rb")
         dir  = File.dirname(source)
@@ -322,6 +310,11 @@ module Grsx
       #   #      plain(@title)
       #   #    end
       def compiled_template_code
+        # For inline templates (defined via `template <<~RSX`), return
+        # the stored compiled code directly.
+        return @_compiled_template_code if @_compiled_template_code
+
+        # For file-based templates, compile from the .rsx file.
         path = @_rsx_template_path || rsx_template_path
         return nil unless path
         compile_template(path)
@@ -345,14 +338,6 @@ module Grsx
       def compile_template(path)
         content = File.read(path)
 
-        # Cache by content hash, not mtime. mtime is fragile in Docker/rsync
-        # deployments where COPY or rsync can reset timestamps to build time
-        # without changing content — or vice versa, touch the file without
-        # changing content, causing pointless recompilation.
-        #
-        # SHA256 is deterministic and correct. We truncate to 16 hex chars
-        # (64 bits of collision resistance) which is more than sufficient for
-        # a per-process in-memory cache keyed by full path.
         hash = Digest::SHA256.hexdigest(content)[0, 16]
         cache_key = "#{path}:#{hash}"
 
@@ -360,16 +345,7 @@ module Grsx
           return TEMPLATE_CACHE[cache_key] if TEMPLATE_CACHE.key?(cache_key)
         end
 
-        template = Grsx::Template.new(content, path)
-
-        begin
-          code = Grsx.compile(template)
-        rescue Grsx::Lexer::SyntaxError, Grsx::Parser::ParseError => e
-          raise TemplateCompileError.new(
-            "#{File.basename(path)}: #{e.message}",
-            template_path: path
-          )
-        end
+        code = Grsx.compile(content, source_map: true)
 
         CACHE_MONITOR.synchronize do
           TEMPLATE_CACHE[cache_key] = code
