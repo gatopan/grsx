@@ -20,6 +20,7 @@ module Grsx
 
       def call(env)
         Grsx::PhlexComponent.all_descendants.each(&:reload_rsx_template_if_changed)
+        Grsx::Rails::RsxAutoloader.reload_changed if defined?(Grsx::Rails::RsxAutoloader)
         @app.call(env)
       end
     end

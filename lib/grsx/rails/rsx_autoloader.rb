@@ -31,6 +31,7 @@ module Grsx
     #
     module RsxAutoloader
       @loaded   = {}
+      @mtimes   = {}  # { path => Time } — tracks file modification times
       @registry = {} # { [Module, :ConstName] => "/abs/path/to/file.rsx" }
       @hooked   = {} # modules that already have const_missing
       @monitor  = Monitor.new
@@ -42,10 +43,19 @@ module Grsx
         #
         # Uses ExtendedParser (Strategy B): Prism's AST locates method
         # bodies, compiles only those containing RSX tags.
+        #
+        # In dev mode, checks file mtime and re-loads if changed.
         def load_rsx(path)
           path = path.to_s
           @monitor.synchronize do
-            return false if @loaded[path]
+            current_mtime = File.mtime(path)
+            if @loaded[path]
+              # Already loaded — skip unless the file has been modified
+              return false if @mtimes[path] == current_mtime
+              # File changed on disk — force re-load
+              @loaded.delete(path)
+            end
+            @mtimes[path] = current_mtime
           end
 
           source = File.read(path)
@@ -64,6 +74,7 @@ module Grsx
         def clear
           @monitor.synchronize do
             @loaded.clear
+            @mtimes.clear
             @registry.clear
             @hooked.clear
           end
@@ -74,6 +85,22 @@ module Grsx
         # Use this for dev-mode reloads where the file paths haven't changed.
         def soft_clear
           @monitor.synchronize { @loaded.clear }
+        end
+
+        # Re-check all loaded single-file .rsx files for mtime changes.
+        # Called by PhlexReloader middleware on each dev request.
+        def reload_changed
+          paths_to_reload = @monitor.synchronize do
+            @loaded.keys.select do |path|
+              File.exist?(path) && File.mtime(path) != @mtimes[path]
+            end
+          end
+
+          paths_to_reload.each do |path|
+            load_rsx(path)
+          rescue => e
+            warn "[GRSX] Failed to reload #{path}: #{e.message}"
+          end
         end
 
         # Scan autoload paths and register .rsx-only files.
