@@ -6,7 +6,7 @@ module Grsx
   # Shared element constants for the GRSX pipeline.
   #
   # Canonical source of truth for HTML, SVG, and void element sets.
-  # Referenced by Parser, Codegen, Preprocessor, and ComponentResolver.
+  # Referenced by Parser, Codegen, and Lint.
   #
   module Elements
     # HTML5 void elements — self-closing, cannot have children.

@@ -7,29 +7,29 @@ module Grsx
   #
   # Walks the AST produced by Parser and emits equivalent Phlex DSL code.
   #
-  # Options:
-  #   source_map: true — emit `# line N` pragmas so Ruby stack traces
-  #                      point back to original RSX line numbers.
+  # ── Line-aligned output ───────────────────────────────────────────
+  #
+  # The compiled output maintains 1:1 line alignment with the RSX source:
+  # compiled line N = RSX source line N. This is achieved by padding with
+  # blank lines before each node to match its source location.
+  #
+  # Combined with class_eval/instance_eval's (file, line) arguments, this
+  # gives Ruby exact file:line mapping for error backtraces — no source map
+  # comments needed.
   #
   # Usage:
   #   ast = Parser.new(source, resolver: resolver).parse
   #   code = Codegen.new(ast, resolver: resolver).generate
   #
-  #   # With source maps (for production use):
-  #   code = Codegen.new(ast, source_map: true).generate
-  #
   class Codegen
-    SVG_ELEMENTS = Elements::SVG
-
     attr_reader :resolver
 
-    def initialize(nodes, resolver: nil, svg_depth: 0, source_map: false)
+    def initialize(nodes, resolver: nil, svg_depth: 0)
       @nodes = nodes
-      @resolver = resolver || Grsx.configuration.element_resolver
+      @resolver = resolver || Grsx.resolver
       @svg_depth = svg_depth
-      @source_map = source_map
       @output = +""
-      @last_mapped_line = nil
+      @current_line = 1
     end
 
     def generate
@@ -39,19 +39,24 @@ module Grsx
 
     private
 
-    # Emit a `# line N` pragma if source mapping is enabled and the node
-    # has a location that hasn't been mapped yet. Ruby uses this to set
-    # the line number in stack traces, making errors point to the original
-    # RSX source instead of the compiled Phlex code.
-    def source_map(node)
-      return unless @source_map
+    # ── Line alignment ───────────────────────────────────────────────
+    # Before emitting code for a node, pad with blank lines so that the
+    # node's compiled line matches its RSX source line. This is the core
+    # mechanism for error line fidelity.
+
+    def pad_to(node)
       return unless node.respond_to?(:location) && node.location
 
-      line = node.location.line
-      return if line == @last_mapped_line
+      target = node.location.line
+      while @current_line < target
+        @output << "\n"
+        @current_line += 1
+      end
+    end
 
-      @last_mapped_line = line
-      @output << "# line #{line}\n"
+    def emit(code)
+      @output << code
+      @current_line += code.count("\n")
     end
 
     def emit_nodes(nodes)
@@ -74,28 +79,28 @@ module Grsx
     # ── Node Emitters ─────────────────────────────────────────────
 
     def emit_ruby(node)
-      @output << node.source
+      emit(node.source)
     end
 
     def emit_text(node)
-      source_map(node)
+      pad_to(node)
       result = node.content
       result = " " + result if node.leading_space
       result = result + " " if node.trailing_space
-      @output << "plain(#{result.inspect})\n"
+      emit("plain(#{result.inspect});")
     end
 
     def emit_expr(node)
-      source_map(node)
+      pad_to(node)
       if node.source == "content"
-        @output << "yield\n"
+        emit("yield;")
       else
-        @output << "__rsx_expr_out(#{node.source})\n"
+        emit("__rsx_expr_out(#{node.source});")
       end
     end
 
     def emit_tag(node)
-      source_map(node)
+      pad_to(node)
       case node.kind
       when :html, :svg then emit_html_tag(node)
       when :component  then emit_component_tag(node)
@@ -110,21 +115,21 @@ module Grsx
 
       if node.self_closing
         if attrs_str.empty?
-          @output << "#{phlex_name}\n"
+          emit("#{phlex_name};")
         else
-          @output << "#{phlex_name}(#{attrs_str})\n"
+          emit("#{phlex_name}(#{attrs_str});")
         end
       else
         block_args = entering_svg ? " |s|" : ""
         if attrs_str.empty?
-          @output << "#{phlex_name} do#{block_args}\n"
+          emit("#{phlex_name} {#{block_args} ")
         else
-          @output << "#{phlex_name}(#{attrs_str}) do#{block_args}\n"
+          emit("#{phlex_name}(#{attrs_str}) {#{block_args} ")
         end
         @svg_depth += 1 if entering_svg
         emit_children_with_spacing(node.children)
         @svg_depth -= 1 if entering_svg
-        @output << "end\n"
+        emit(" };")
       end
     end
 
@@ -134,22 +139,22 @@ module Grsx
       kwargs = attrs_str.empty? ? "" : "(#{attrs_str})"
 
       if node.self_closing
-        @output << "render(#{component_expr}.new#{kwargs})"
+        emit("render(#{component_expr}.new#{kwargs});")
       else
-        @output << "render(#{component_expr}.new#{kwargs}) do\n"
+        emit("render(#{component_expr}.new#{kwargs}) { ")
         emit_children_with_spacing(node.children)
-        @output << "end\n"
+        emit(" };")
       end
     end
 
     def emit_fragment(node)
-      source_map(node)
+      pad_to(node)
       emit_children_with_spacing(node.children)
     end
 
     def emit_block_expr(node)
-      source_map(node)
-      @output << "#{node.preamble}\n"
+      pad_to(node)
+      emit("#{node.preamble}; ")
       emit_nodes(node.children)
     end
 
@@ -165,14 +170,14 @@ module Grsx
           # If it contains newlines, it's indentation → pass through verbatim.
           # If same-line spaces between output-producing nodes → plain(" ").
           if node.source.include?("\n")
-            @output << node.source
+            emit(node.source)
           else
             prev_node = i > 0 ? children[i - 1] : nil
             produces_output = prev_node.is_a?(AST::Tag) || prev_node.is_a?(AST::Expr) || prev_node.is_a?(AST::BlockExpr)
             if node.source.include?(" ") && produces_output
-              @output << "plain(\" \")\n"
+              emit("plain(\" \")\n")
             else
-              @output << node.source
+              emit(node.source)
             end
           end
         elsif node.is_a?(AST::Text)
@@ -181,8 +186,8 @@ module Grsx
           result = node.content
           result = " " + result if node.leading_space && produces_output
           result = result + " " if node.trailing_space
-          source_map(node)
-          @output << "plain(#{result.inspect})\n"
+          pad_to(node)
+          emit("plain(#{result.inspect})\n")
         else
           emit_node(node)
         end

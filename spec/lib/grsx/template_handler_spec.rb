@@ -114,36 +114,8 @@ RSpec.describe Grsx::TemplateHandler do
     end
   end
 
-  describe "#translate_location" do
-    let(:source) do
-      "some code\nmore code # rsx:5\neven more\n"
-    end
 
-    let(:backtrace_location) do
-      double("BacktraceLocation", lineno: 2)
-    end
 
-    it "maps compiled line to RSX source line via rsx:N marker" do
-      spot = { first_lineno: 2, last_lineno: 2, first_column: 0, last_column: 10 }
-      result = handler.translate_location(spot, backtrace_location, source)
-      expect(result).not_to be_nil
-      expect(result[:first_lineno]).to eq(5)
-      expect(result[:last_lineno]).to eq(5)
-    end
-
-    it "returns nil when no rsx marker matches the line" do
-      spot = { first_lineno: 1, last_lineno: 1, first_column: 0, last_column: 10 }
-      loc = double("BacktraceLocation", lineno: 1)
-      result = handler.translate_location(spot, loc, source)
-      expect(result).to be_nil
-    end
-
-    it "returns nil for nil source" do
-      spot = { first_lineno: 1, last_lineno: 1 }
-      loc = double("BacktraceLocation", lineno: 1)
-      expect(handler.translate_location(spot, loc, nil)).to be_nil
-    end
-  end
 
   describe "template annotations" do
     let(:template_source) { "<p>Hello</p>" }

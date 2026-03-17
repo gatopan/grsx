@@ -22,7 +22,7 @@ module Grsx
   class ExtendedParser
     def initialize(source, resolver: nil)
       @source = source
-      @resolver = resolver || Grsx.configuration.element_resolver
+      @resolver = resolver || Grsx.resolver
     end
 
     # Compile .rsx source into pure Ruby (Phlex DSL).

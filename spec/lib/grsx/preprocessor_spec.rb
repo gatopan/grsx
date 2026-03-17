@@ -2,11 +2,9 @@
 
 require "spec_helper"
 
-RSpec.describe Grsx::Preprocessor do
-  subject(:preprocessor) { described_class.new }
-
+RSpec.describe "GRSX Compilation" do
   def preprocess(source)
-    preprocessor.preprocess(source)
+    Grsx.compile(source)
   end
 
   def render(source, **init_args, &block)
@@ -33,7 +31,7 @@ RSpec.describe Grsx::Preprocessor do
 
     it "converts a self-closing non-void element: <div />" do
       result = preprocess("<div />")
-      expect(result.strip).to eq("div")
+      expect(result.strip).to eq("div;")
     end
 
     it "converts an open+close element with text: <p>hi</p>" do
@@ -336,30 +334,30 @@ RSpec.describe Grsx::Preprocessor do
     it "ignores tags inside comments" do
       result = preprocess("# <div>not a tag</div>\n<p>real</p>")
       expect(result).to include("# <div>not a tag</div>")
-      expect(result).to include("p do")
+      expect(result).to include("p { ")
     end
 
     it "handles end-of-line comments" do
       result = preprocess("x = 1 # <div> not a tag\n<p>real</p>")
       expect(result).to include("# <div> not a tag")
-      expect(result).to include("p do")
+      expect(result).to include("p { ")
     end
 
     it "handles escaped quotes in strings" do
       result = preprocess('x = "she said \\"<div>\\" hi"')
-      expect(result).not_to include("div do")
+      expect(result).not_to include("div { ")
     end
 
     it "handles %q() strings" do
       result = preprocess('x = %q(<div>not a tag</div>)')
       expect(result).to include('%q(<div>not a tag</div>)')
-      expect(result).not_to include("div do")
+      expect(result).not_to include("div { ")
     end
 
     it "handles %Q() strings" do
       result = preprocess('x = %Q(<span>not a tag</span>)')
       expect(result).to include('%Q(<span>not a tag</span>)')
-      expect(result).not_to include("span do")
+      expect(result).not_to include("span { ")
     end
 
     it "handles %w() arrays" do
@@ -375,7 +373,7 @@ RSpec.describe Grsx::Preprocessor do
     it "handles backtick command strings" do
       result = preprocess('x = `echo <div>`')
       expect(result).to include('`echo <div>`')
-      expect(result).not_to include("div do")
+      expect(result).not_to include("div { ")
     end
 
     it "handles nested delimiters in percent-strings" do
@@ -385,7 +383,7 @@ RSpec.describe Grsx::Preprocessor do
 
     it "handles Regexp.new (safe alternative to // in .rsx)" do
       result = preprocess('x = Regexp.new("<div>")')
-      expect(result).not_to include("div do")
+      expect(result).not_to include("div { ")
     end
   end
 
@@ -416,7 +414,7 @@ RSpec.describe Grsx::Preprocessor do
     it "strips top-level HTML comments" do
       result = preprocess("<!-- TODO -->\n<div>x</div>")
       expect(result).not_to include("<!--")
-      expect(result).to include("div do")
+      expect(result).to include("div { ")
     end
 
     it "strips comments inside tag children" do
@@ -428,7 +426,7 @@ RSpec.describe Grsx::Preprocessor do
     it "strips multi-line comments" do
       result = preprocess("<!--\n  multi\n  line\n-->\n<p>after</p>")
       expect(result).not_to include("multi")
-      expect(result).to include("p do")
+      expect(result).to include("p { ")
     end
 
     it "tracks line numbers through comments" do
@@ -652,7 +650,7 @@ RSpec.describe Grsx::Preprocessor do
       }
       code = klass.compiled_template_code
       expect(code).to include('div(class: "card")')
-      expect(code).to include("p do")
+      expect(code).to include("p { ")
     end
   end
 
@@ -829,7 +827,7 @@ RSpec.describe Grsx::Preprocessor do
   describe "Grsx.compile integration" do
     it "Grsx.compile uses the preprocessor" do
       html = Grsx.compile("<p>hello</p>")
-      expect(html).to include("p do")
+      expect(html).to include("p { ")
       expect(html).to include('plain("hello")')
     end
   end

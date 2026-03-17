@@ -1,0 +1,34 @@
+{
+  "name": "grsx",
+  "displayName": "GRSX",
+  "description": "Syntax highlighting and language support for GRSX (Ruby + HTML templating)",
+  "version": "0.1.0",
+  "publisher": "gatopan",
+  "engines": {
+    "vscode": "^1.80.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "contributes": {
+    "languages": [
+      {
+        "id": "rsx",
+        "aliases": ["GRSX", "rsx"],
+        "extensions": [".rsx", ".html.rsx"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "rsx",
+        "scopeName": "source.rsx",
+        "path": "./syntaxes/rsx.tmLanguage.json",
+        "embeddedLanguages": {
+          "meta.embedded.block.ruby": "ruby",
+          "meta.embedded.inline.ruby": "ruby"
+        }
+      }
+    ]
+  }
+}

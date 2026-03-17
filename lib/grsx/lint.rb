@@ -88,22 +88,39 @@ module Grsx
           next if stripped.empty? || stripped.start_with?("<!--")
 
           # ── Bare `# comment` on a line that's indented inside a tag ──
-          #
-          # In pure Ruby context (class body, method body before any tags),
-          # `# comment` is a valid Ruby comment. But inside tag children,
-          # it renders as visible text.
-          #
-          # We only flag this if the line is indented (suggesting it's inside
-          # a tag) AND it's purely a comment (nothing else on the line).
-          # Lines at column 0 are likely class/file-level comments.
           if stripped.match?(/\A#\s/) && line.match?(/\A\s{2,}#\s/)
-            # Check if there's a preceding opening tag that hasn't been closed
-            # by looking at previous lines for HTML tags
             context = lines[0...idx].join
             if context.scan(/<[a-zA-Z]/).size > context.scan(/<\/[a-zA-Z]/).size
               diagnostics << Diagnostic.new(
                 filename, lineno, 1, :warning,
                 "possible bare `#` comment inside tag body — may render as visible text. Use `<!-- comment -->` instead",
+                line
+              )
+            end
+          end
+
+          # ── JSX convention attributes ──
+          # Flag className, htmlFor, etc. with auto-fix suggestion.
+          Grsx::Elements::JSX_ATTR_CORRECTIONS.each do |jsx_name, html_name|
+            if line.include?(jsx_name) && line.match?(/\b#{jsx_name}\b/)
+              col = line.index(jsx_name).to_i + 1
+              diagnostics << Diagnostic.new(
+                filename, lineno, col, :warning,
+                "JSX convention: '#{jsx_name}' → '#{html_name}'. RSX uses standard HTML attribute names",
+                line
+              )
+            end
+          end
+
+          # ── Event handler attributes ──
+          # Flag onClick, onSubmit etc. — suggest Stimulus data-action.
+          if line.match?(/\bon[A-Z]\w+[={\s]/)
+            event = line[/\b(on[A-Z]\w+)/, 1]
+            if event
+              col = line.index(event).to_i + 1
+              diagnostics << Diagnostic.new(
+                filename, lineno, col, :warning,
+                "'#{event}' is a React convention. In Rails, use Stimulus: data-action=\"#{event.sub('on', '').downcase}->controller#method\"",
                 line
               )
             end

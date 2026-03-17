@@ -1,8 +1,6 @@
 # frozen_string_literal: true
 
-require "set"
 require "strscan"
-
 
 module Grsx
   # Recursive-descent parser for RSX source.
@@ -17,23 +15,16 @@ module Grsx
   #   # => [AST::RubyCode(...), AST::Tag(...), ...]
   #
   class Parser
-    HTML_VOID_ELEMENTS   = Elements::VOID
-    SVG_ELEMENTS         = Elements::SVG
-    KNOWN_HTML_ELEMENTS  = Elements::KNOWN
-    JSX_ATTR_CORRECTIONS = Elements::JSX_ATTR_CORRECTIONS
-
-
-
     attr_reader :resolver
 
     def initialize(source, resolver: nil)
       @source = source
       @scanner = StringScanner.new(source)
       @line = 1
-      @col = 0
+      @col = 0  # TODO: track column for IDE-quality diagnostics
       @tag_stack = []
       @svg_depth = 0
-      @resolver = resolver || Grsx.configuration.element_resolver
+      @resolver = resolver || Grsx.resolver
     end
 
     # Parse the entire source into a list of AST nodes.
@@ -357,9 +348,9 @@ module Grsx
       self_closing_text = @scanner.scan(/\s*\/?>/)
       track_newlines(self_closing_text)
 
-      is_self_closing = self_closing_text&.include?("/") || HTML_VOID_ELEMENTS.include?(tag_name)
+      is_self_closing = self_closing_text&.include?("/") || Elements::VOID.include?(tag_name)
       entering_svg = tag_name == "svg" && !is_self_closing
-      kind = @svg_depth > 0 && SVG_ELEMENTS.include?(tag_name) ? :svg : :html
+      kind = @svg_depth > 0 && Elements::SVG.include?(tag_name) ? :svg : :html
 
       children = []
       unless is_self_closing
@@ -423,7 +414,7 @@ module Grsx
           closed = @tag_stack.pop
           @svg_depth -= 1 if closed&.dig(:svg)
         else
-          open_info = @tag_stack.last
+
           raise Grsx::SyntaxError.new(
             "Mismatched closing tag: expected </#{expected_tag}>, got </#{actual}>",
             line: @line, source: @source
@@ -499,33 +490,7 @@ module Grsx
       open_line = @line
       @scanner.scan(/\{/) # consume {
 
-      preamble = +""
-      block_detected = false
-      depth = 0
-
-      while !@scanner.eos?
-        if @scanner.check(/\}/) && depth == 0
-          break
-        elsif @scanner.scan(/\{/)
-          depth += 1
-          preamble << "{"
-        elsif @scanner.scan(/\}/)
-          depth -= 1
-          preamble << "}"
-        elsif @scanner.scan(/"/)
-          preamble << '"' << scan_quoted_string_raw('"') << '"'
-        elsif @scanner.scan(/'/)
-          preamble << "'" << scan_quoted_string_raw("'") << "'"
-        elsif @scanner.scan(/\bdo\b(\s*\|[^|]*\|)?/)
-          preamble << @scanner.matched
-          block_detected = true
-          break
-        else
-          ch = @scanner.getch
-          @line += 1 if ch == "\n"
-          preamble << ch
-        end
-      end
+      preamble, block_detected = scan_braced_content(detect_block: true)
 
       # Unclosed expression detection
       if @scanner.eos? && !block_detected
@@ -589,13 +554,13 @@ module Grsx
 
     def try_skip_string
       if @scanner.scan(/"/)
-        raw = scan_quoted_string_raw('"')
+        raw = scan_quoted_string('"', raw: true)
         "\"#{raw}\""
       elsif @scanner.scan(/'/)
-        raw = scan_quoted_string_raw("'")
+        raw = scan_quoted_string("'", raw: true)
         "'#{raw}'"
       elsif @scanner.scan(/`/)
-        raw = scan_quoted_string_raw("`")
+        raw = scan_quoted_string("`", raw: true)
         "`#{raw}`"
       elsif @scanner.scan(/<<~?([A-Z_]+)/)
         heredoc_start = @scanner.matched
@@ -641,27 +606,11 @@ module Grsx
 
     # ── String Scanning Helpers ───────────────────────────────────
 
-    def scan_quoted_string(quote)
+    def scan_quoted_string(quote, raw: false)
       result = +""
       while !@scanner.eos?
         if @scanner.scan(/\\#{Regexp.escape(quote)}/)
-          result << quote
-        elsif @scanner.scan(/#{Regexp.escape(quote)}/)
-          break
-        else
-          ch = @scanner.getch
-          @line += 1 if ch == "\n"
-          result << ch
-        end
-      end
-      result
-    end
-
-    def scan_quoted_string_raw(quote)
-      result = +""
-      while !@scanner.eos?
-        if @scanner.scan(/\\#{Regexp.escape(quote)}/)
-          result << "\\" << quote
+          result << (raw ? "\\" + quote : quote)
         elsif @scanner.check(/#{Regexp.escape(quote)}/)
           @scanner.getch
           break
@@ -674,10 +623,13 @@ module Grsx
       result
     end
 
-    def scan_expression_content
+    # Shared brace-depth-tracking scanner.
+    # Returns [content_string, block_detected].
+    # When detect_block is true, stops at bare `do` keyword.
+    def scan_braced_content(detect_block: false)
       result = +""
       depth = 0
-      open_line = @line
+      block_detected = false
 
       while !@scanner.eos?
         if @scanner.check(/\}/) && depth == 0
@@ -689,15 +641,26 @@ module Grsx
           depth -= 1
           result << "}"
         elsif @scanner.scan(/"/)
-          result << '"' << scan_quoted_string_raw('"') << '"'
+          result << '"' << scan_quoted_string('"', raw: true) << '"'
         elsif @scanner.scan(/'/)
-          result << "'" << scan_quoted_string_raw("'") << "'"
+          result << "'" << scan_quoted_string("'", raw: true) << "'"
+        elsif detect_block && @scanner.scan(/\bdo\b(\s*\|[^|]*\|)?/)
+          result << @scanner.matched
+          block_detected = true
+          break
         else
           ch = @scanner.getch
           @line += 1 if ch == "\n"
           result << ch
         end
       end
+
+      [result, block_detected]
+    end
+
+    def scan_expression_content
+      open_line = @line
+      result, _ = scan_braced_content
 
       if @scanner.eos? && !@scanner.check(/\}/)
         raise Grsx::SyntaxError.new(
@@ -756,7 +719,7 @@ module Grsx
     end
 
     def html_element?(name)
-      KNOWN_HTML_ELEMENTS.include?(name)
+      Elements::KNOWN.include?(name)
     end
 
     def component_element?(name)
@@ -766,7 +729,7 @@ module Grsx
     def find_similar_element(name)
       best = nil
       best_dist = Float::INFINITY
-      KNOWN_HTML_ELEMENTS.each do |el|
+      Elements::KNOWN.each do |el|
         next if (el.length - name.length).abs > 2
         dist = simple_edit_distance(name, el)
         if dist < best_dist && dist <= 2
@@ -793,7 +756,7 @@ module Grsx
     end
 
     def correct_jsx_attr(name)
-      if (corrected = JSX_ATTR_CORRECTIONS[name])
+      if (corrected = Elements::JSX_ATTR_CORRECTIONS[name])
         warn "[GRSX] JSX convention: '#{name}' → '#{corrected}' (line #{@line}). RSX uses standard HTML attribute names."
         return corrected
       end

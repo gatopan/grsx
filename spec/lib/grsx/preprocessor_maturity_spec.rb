@@ -6,7 +6,7 @@ require "spec_helper"
 # Each test targets a specific lesson from Babel/SWC/React's journey.
 RSpec.describe "GRSX maturity (JSX lessons)" do
   def preprocess(source)
-    Grsx::Preprocessor.new.preprocess(source)
+    Grsx.compile(source)
   end
 
   def render(source, **init_args, &block)
@@ -311,7 +311,7 @@ RSpec.describe "GRSX maturity (JSX lessons)" do
         <div>hello</div>
       RSX
       expect(result).to include("# This is a comment")
-      expect(result).to include("div do")
+      expect(result).to include("div { ")
     end
   end
 end

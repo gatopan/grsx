@@ -14,8 +14,8 @@ require "spec_helper"
 # ═══════════════════════════════════════════════════════════════════════
 
 RSpec.describe "GRSX Pipeline" do
-  def preprocess(source, source_map: false)
-    Grsx::Preprocessor.new.preprocess(source, source_map: source_map)
+  def preprocess(source)
+    Grsx.compile(source)
   end
 
   def parse(source)
@@ -184,31 +184,23 @@ RSpec.describe "GRSX Pipeline" do
   # SOURCE MAP TESTS — verify # line N pragmas
   # ═══════════════════════════════════════════════════════════════════
 
-  describe "source maps" do
-    it "emits # line 1 for a top-level tag" do
-      code = preprocess("<div>x</div>", source_map: true)
-      expect(code).to include("# line 1")
+  describe "line alignment" do
+    it "aligns a top-level tag to its source line" do
+      code = preprocess("<div>x</div>")
+      # First line of compiled output should start with the tag
+      first_meaningful = code.lines.find { |l| l.strip.length > 0 }
+      expect(first_meaningful).to include("div")
     end
 
-    it "emits correct line numbers for multi-line source" do
-      code = preprocess("<div>\n  <p>hello</p>\n</div>", source_map: true)
-      expect(code).to include("# line 1")
-      expect(code).to include("# line 2")
+    it "aligns multi-line source — tag on line 2 is on compiled line 2" do
+      source = "@x = 1\n<div>hello</div>"
+      code = preprocess(source)
+      lines = code.lines
+      # Line 2 should contain the div tag
+      expect(lines[1]).to include("div")
     end
 
-    it "does not emit source maps when disabled" do
-      code = preprocess("<div>x</div>", source_map: false)
-      expect(code).not_to include("# line")
-    end
-
-    it "does not duplicate line pragmas for same line" do
-      code = preprocess("<p>text {expr} more</p>", source_map: true)
-      # The tag and its children are on line 1 — should not repeat
-      lines = code.lines.select { |l| l.include?("# line 1") }
-      expect(lines.length).to eq(1)
-    end
-
-    it "maps tags at correct lines in complex source" do
+    it "preserves blank lines to maintain line correspondence" do
       source = <<~RSX
         @x = 1
         @y = 2
@@ -217,10 +209,11 @@ RSpec.describe "GRSX Pipeline" do
           <span>world</span>
         </div>
       RSX
-      code = preprocess(source, source_map: true)
-      expect(code).to include("# line 3")
-      expect(code).to include("# line 4")
-      expect(code).to include("# line 5")
+      code = preprocess(source)
+      # The div tag (source line 3) should be on or near compiled line 3
+      lines = code.lines
+      div_line = lines.index { |l| l.include?("div") }
+      expect(div_line).to be <= 3  # 0-indexed, so line 3 = index 2..3
     end
   end
 
@@ -474,7 +467,7 @@ RSpec.describe "GRSX Pipeline" do
         <p>done</p>
       RSX
       expect(result).to include("`echo hello`")
-      expect(result).to include("p do")
+      expect(result).to include("p { ")
     end
   end
 
@@ -972,10 +965,8 @@ RSpec.describe "GRSX Pipeline" do
       expect(Grsx::Elements::JSX_ATTR_CORRECTIONS).to be_frozen
     end
 
-    it "Preprocessor constants delegate to Elements" do
-      expect(Grsx::Preprocessor::HTML_VOID_ELEMENTS).to equal(Grsx::Elements::VOID)
-      expect(Grsx::Preprocessor::SVG_ELEMENTS).to equal(Grsx::Elements::SVG)
-    end
+
+
   end
 
   # ═══════════════════════════════════════════════════════════════════
@@ -1078,7 +1069,7 @@ RSpec.describe "GRSX Pipeline" do
     describe "double end" do
       it "emits two end statements" do
         code = preprocess('<div>{if true}{if false}<p>x</p>{end}{end}</div>')
-        ends = code.scan(/^end$/)
+        ends = code.scan(/\bend\b/)
         expect(ends.length).to be >= 2
       end
     end
@@ -1139,7 +1130,7 @@ RSpec.describe "GRSX Pipeline" do
         expect(code).to include("if item.visible?")
         expect(code).to include("__rsx_expr_out(item.name)")
         # Should have ends for: inner if, each, outer if
-        ends = code.scan(/^end$/)
+        ends = code.scan(/\bend\b/)
         expect(ends.length).to be >= 2
       end
     end

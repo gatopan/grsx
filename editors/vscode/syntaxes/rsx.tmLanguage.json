@@ -1,0 +1,155 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "GRSX",
+  "scopeName": "source.rsx",
+  "patterns": [
+    {
+      "include": "#main"
+    }
+  ],
+  "repository": {
+    "main": {
+      "patterns": [
+        {
+          "include": "#html-comment"
+        },
+        {
+          "include": "#html-tag"
+        },
+        {
+          "include": "source.ruby"
+        }
+      ]
+    },
+    "html-comment": {
+      "begin": "<!--",
+      "captures": {
+        "0": { "name": "punctuation.definition.comment.rsx" }
+      },
+      "end": "-->",
+      "name": "comment.block.html.rsx"
+    },
+    "html-tag": {
+      "patterns": [
+        {
+          "begin": "(</?)([a-zA-Z][a-zA-Z0-9\\-_\\.:]*)",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.tag.begin.rsx" },
+            "2": { "name": "entity.name.tag.rsx" }
+          },
+          "end": "(/?>)",
+          "endCaptures": {
+            "1": { "name": "punctuation.definition.tag.end.rsx" }
+          },
+          "name": "meta.tag.rsx",
+          "patterns": [
+            {
+              "include": "#tag-attributes"
+            }
+          ]
+        },
+        {
+          "begin": "(<)(>)",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.tag.begin.rsx" },
+            "2": { "name": "punctuation.definition.tag.end.rsx" }
+          },
+          "end": "(</)(>)",
+          "endCaptures": {
+            "1": { "name": "punctuation.definition.tag.begin.rsx" },
+            "2": { "name": "punctuation.definition.tag.end.rsx" }
+          },
+          "name": "meta.tag.fragment.rsx",
+          "patterns": [
+            {
+              "include": "#main"
+            }
+          ]
+        }
+      ]
+    },
+    "tag-attributes": {
+      "patterns": [
+        {
+          "include": "#interpolated-ruby"
+        },
+        {
+          "match": "\\b([a-zA-Z\\-]+)\\b",
+          "name": "entity.other.attribute-name.rsx"
+        },
+        {
+          "begin": "=",
+          "beginCaptures": {
+            "0": { "name": "punctuation.separator.key-value.rsx" }
+          },
+          "end": "(?=\\s|/?>)",
+          "patterns": [
+            {
+              "include": "#interpolated-ruby"
+            },
+            {
+              "include": "#string-double"
+            },
+            {
+              "include": "#string-single"
+            },
+            {
+              "match": "[^\\s/?>]+",
+              "name": "string.unquoted.rsx"
+            }
+          ]
+        }
+      ]
+    },
+    "interpolated-ruby": {
+      "begin": "\\{",
+      "beginCaptures": {
+        "0": { "name": "punctuation.section.embedded.begin.rsx" }
+      },
+      "end": "\\}",
+      "endCaptures": {
+        "0": { "name": "punctuation.section.embedded.end.rsx" }
+      },
+      "name": "meta.embedded.inline.ruby",
+      "patterns": [
+        {
+          "include": "#main"
+        }
+      ]
+    },
+    "string-double": {
+      "begin": "\"",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.rsx" }
+      },
+      "end": "\"",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.rsx" }
+      },
+      "name": "string.quoted.double.rsx",
+      "patterns": [
+        {
+          "match": "\\\\.",
+          "name": "constant.character.escape.rsx"
+        }
+      ]
+    },
+    "string-single": {
+      "begin": "'",
+      "beginCaptures": {
+        "0": { "name": "punctuation.definition.string.begin.rsx" }
+      },
+      "end": "'",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.string.end.rsx" }
+      },
+      "name": "string.quoted.single.rsx",
+      "patterns": [
+        {
+          "match": "\\\\.",
+          "name": "constant.character.escape.rsx"
+        }
+      ]
+    }
+  }
+}
